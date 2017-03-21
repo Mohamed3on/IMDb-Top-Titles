@@ -1,3 +1,5 @@
+import json
+from selenium import webdriver
 from bs4 import BeautifulSoup
 import urllib.request
 
@@ -25,16 +27,21 @@ def getScore(id):
 
 
 # if found item with class next-page go to that item's href and append the scores, else return the scores
-def getMovies(scores,url ,minScore):
+def getMovies(scores, url, minScore):
     with urllib.request.urlopen(url) as url:
         r = url.read()
     soup = BeautifulSoup(r, "lxml")
     for ana in soup.find_all("span", class_="lister-item-header"):
         url = ana.a["href"]
         id = url.split('/')[2]
-        name, score = getScore(id)
-        if score>minScore:
-            scores[name] = score
+        moviename = ana.a.text
+        if moviename not in scores:
+            name, score = getScore(id)
+            if score > minScore:
+                scores[name] = score
+        else:
+            continue
+    savescores(scores, 'scores')
     desc = soup.find("div", class_="desc")
     nextdiv = desc.find("a", class_="next-page")
     if not nextdiv:
@@ -43,18 +50,41 @@ def getMovies(scores,url ,minScore):
     else:
         url = nextdiv["href"]
         nexturl = 'http://www.imdb.com/search/title' + url
-        return getMovies(scores, nexturl)
+        print("next page")
+        return getMovies(scores, nexturl, minScore)
 
 
-def test(url):
+def savescores(scores, name):
+    name = name + '.json'
+    with open(name, 'w') as fp:
+        json.dump(scores, fp)
+
+
+def getBookScore(url):
+    chromeOptions = webdriver.ChromeOptions()
+    prefs = {"profile.managed_default_content_settings.images": 2}
+    chromeOptions.add_experimental_option("prefs", prefs)
+
+    driver = webdriver.Chrome("C:/Users/Mohamed/chromedriver.exe", chrome_options=chromeOptions)
+    driver.get(url)
+    driver.find_element_by_id("rating_details").click()
+    html = driver.page_source
+    soup = BeautifulSoup(html, "lxml")
+    scores = []
+    for td in soup.find_all("td", width="90"):
+        s = td.text
+        scores.append(int(s[s.find("(") + 1:s.find(")")]))
+    return scores[0] - scores[-1]
+
+
+def getBooks(url):
+    books = {}
     with urllib.request.urlopen(url) as url:
         r = url.read()
     soup = BeautifulSoup(r, "lxml")
-    desc = soup.find("div", class_="desc")
-    next = desc.find("a", class_="next-page")
-    if next:
-        url = next["href"]
-        nexturl = 'http://www.imdb.com/search/title' + url
-        print(nexturl)
-    else:
-        print('end')
+    for book in soup.find_all("a", class_="bookTitle"):
+        title = book.text
+        href = "https://www.goodreads.com" + book["href"]
+        score = getBookScore(href)
+        book[title] = score
+    savescores(books, 'books')
