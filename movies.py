@@ -16,5 +16,5 @@ data = imdb.getMovies(scores,
                       'http://www.imdb.com/search/title?count=250&num_votes=30000,&sort=num_votes,desc&view=simple&page=15&ref_=adv_prv',
                       minScore)
 sorteddata = sorted(data.items(), key=operator.itemgetter(1), reverse=True)
-imdb.savescores(data,'scores')
-imdb.savescores(sorteddata,'sortedtitles')
+imdb.savescores(data, 'scores')
+imdb.savescores(sorteddata, 'sortedtitles')

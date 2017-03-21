@@ -60,12 +60,7 @@ def savescores(scores, name):
         json.dump(scores, fp)
 
 
-def getBookScore(url):
-    chromeOptions = webdriver.ChromeOptions()
-    prefs = {"profile.managed_default_content_settings.images": 2}
-    chromeOptions.add_experimental_option("prefs", prefs)
-
-    driver = webdriver.Chrome("C:/Users/Mohamed/chromedriver.exe", chrome_options=chromeOptions)
+def getBookScore(url, driver):
     driver.get(url)
     driver.find_element_by_id("rating_details").click()
     html = driver.page_source
@@ -77,14 +72,25 @@ def getBookScore(url):
     return scores[0] - scores[-1]
 
 
-def getBooks(url):
-    books = {}
+def getBooks(books, url):
+    chromeOptions = webdriver.ChromeOptions()
+    prefs = {"profile.managed_default_content_settings.images": 2}
+    chromeOptions.add_experimental_option("prefs", prefs)
+    driver = webdriver.Chrome("C:/Users/Mohamed/chromedriver.exe", chrome_options=chromeOptions)
     with urllib.request.urlopen(url) as url:
         r = url.read()
     soup = BeautifulSoup(r, "lxml")
+    count = 1
     for book in soup.find_all("a", class_="bookTitle"):
         title = book.text
-        href = "https://www.goodreads.com" + book["href"]
-        score = getBookScore(href)
-        book[title] = score
-    savescores(books, 'books')
+        if title not in books:
+            href = "https://www.goodreads.com" + book["href"]
+            score = getBookScore(href, driver)
+            print(count, ':', title)
+            print(score)
+            books[title] = score
+            count += 1
+        else:
+            continue
+    driver.close()
+    return books
