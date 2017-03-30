@@ -24,7 +24,6 @@ def getEpscore(id):
     score = ratings[0] + ratings[1] - ratings[-1] - ratings[-2]
     return name, score, sum(ratings)
 
-
 def getScore(id):
     url = 'http://www.imdb.com/title/' + id + '/ratings'
     soup = getSoup(url)
@@ -48,7 +47,6 @@ def getSoup(url):
         r = url.read()
     return bs4.BeautifulSoup(r, "lxml")
 
-
 # if found item with class next-page go to that item's href and append the scores, else return the scores
 def getMovies(scores, url, minScore):
     soup = getSoup(url)
@@ -67,7 +65,7 @@ def getMovies(scores, url, minScore):
                 bypassed = 0
                 scores[name] = score, id
                 print(name)
-                print(scores[name][0])
+                print(score)
             else:
                 bypassed += 1
         else:
