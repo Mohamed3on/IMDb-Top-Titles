@@ -7,46 +7,6 @@ import bs4
 from selenium import webdriver
 
 
-def getEpscore(id):
-    url = 'http://www.imdb.com/title/' + id + '/ratings'
-    soup = getSoup(url)
-    ratings = []
-    previous = 1
-    for i in soup.find_all("a", class_="main"):
-        name = i.string
-
-    for link in soup.find_all('td'):
-        if link.get('nowrap') == "1":
-            ratings.append(int(previous))
-        else:
-            previous = link.string
-        if len(ratings) == 10: break
-    score = ratings[0] + ratings[1] - ratings[-1] - ratings[-2]
-    return name, score, sum(ratings)
-
-def getScore(id):
-    url = 'http://www.imdb.com/title/' + id + '/ratings'
-    soup = getSoup(url)
-    ratings = []
-    previous = 1
-    for i in soup.find_all("a", class_="main"):
-        name = i.string
-
-    for link in soup.find_all('td'):
-        if link.get('nowrap') == "1":
-            ratings.append(int(previous))
-        else:
-            previous = link.string
-        if len(ratings) == 10: break
-    score = ratings[0] + ratings[1] - ratings[-1] - ratings[-2]
-    return name, score
-
-
-def getSoup(url):
-    with urllib.request.urlopen(url) as url:
-        r = url.read()
-    return bs4.BeautifulSoup(r, "lxml")
-
 # if found item with class next-page go to that item's href and append the scores, else return the scores
 def getMovies(scores, url, minScore):
     soup = getSoup(url)
@@ -60,7 +20,7 @@ def getMovies(scores, url, minScore):
             moviename = title.text
         id = url.split('/')[2]
         if moviename not in scores:
-            name, score = getScore(id)
+            name, score = getTitleScore(id)
             if score > minScore:
                 bypassed = 0
                 scores[name] = score, id
@@ -81,6 +41,30 @@ def getMovies(scores, url, minScore):
         nexturl = 'http://www.imdb.com/search/title' + url
         print("next page")
         return getMovies(scores, nexturl, minScore)
+
+
+def getSoup(url):
+    with urllib.request.urlopen(url) as url:
+        r = url.read()
+    return bs4.BeautifulSoup(r, "lxml")
+
+
+def getTitleScore(id):
+    url = 'http://www.imdb.com/title/' + id + '/ratings'
+    soup = getSoup(url)
+    ratings = []
+    previous = 1
+    for i in soup.find_all("a", class_="main"):
+        name = i.string
+
+    for link in soup.find_all('td'):
+        if link.get('nowrap') == "1":
+            ratings.append(int(previous))
+        else:
+            previous = link.string
+        if len(ratings) == 10: break
+    score = ratings[0] + ratings[1] - ratings[-1] - ratings[-2]
+    return name, score
 
 
 def getEpisodes(url):
@@ -112,16 +96,22 @@ def getEpisodes(url):
     return episodes
 
 
-def getBookScore(url, driver):
-    driver.get(url)
-    driver.find_element_by_id("rating_details").click()
-    html = driver.page_source
-    soup = bs4.BeautifulSoup(html, "lxml")
-    scores = []
-    for td in soup.find_all("td", width="90"):
-        s = td.text
-        scores.append(int(s[s.find("(") + 1:s.find(")")]))
-    return scores[0] - scores[-1]
+def getEpscore(id):
+    url = 'http://www.imdb.com/title/' + id + '/ratings'
+    soup = getSoup(url)
+    ratings = []
+    previous = 1
+    for i in soup.find_all("a", class_="main"):
+        name = i.string
+
+    for link in soup.find_all('td'):
+        if link.get('nowrap') == "1":
+            ratings.append(int(previous))
+        else:
+            previous = link.string
+        if len(ratings) == 10: break
+    score = ratings[0] + ratings[1] - ratings[-1] - ratings[-2]
+    return name, score, sum(ratings)
 
 
 def getBooks(url):
@@ -144,6 +134,18 @@ def getBooks(url):
 
     driver.close()
     return books
+
+
+def getBookScore(url, driver):
+    driver.get(url)
+    driver.find_element_by_id("rating_details").click()
+    html = driver.page_source
+    soup = bs4.BeautifulSoup(html, "lxml")
+    scores = []
+    for td in soup.find_all("td", width="90"):
+        s = td.text
+        scores.append(int(s[s.find("(") + 1:s.find(")")]))
+    return scores[0] - scores[-1]
 
 
 def savescores(scores, name):
