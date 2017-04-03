@@ -123,11 +123,10 @@ def getBooks(url):
     soup = getSoup(url)
     bypassed = 1
     for book in soup.find_all("a", class_="bookTitle"):
-        title = book.text
-
+        title = book.text.strip('\n')
         href = "https://www.goodreads.com" + book["href"]
         score = getBookScore(href, driver)
-        print(bypassed, ':', title)
+        print(str(bypassed) + ': ' + title)
         print(score)
         books[title] = score
         bypassed += 1
