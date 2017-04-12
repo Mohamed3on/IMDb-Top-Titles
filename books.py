@@ -9,7 +9,8 @@ def savebooks(books, name):
 
 
 def programmingbooks():
-    savebooks("https://www.goodreads.com/shelf/show/programming", 'programmingbooks')
+     page1=functions.getBooks("https://www.goodreads.com/shelf/show/programming")
+     savebooks(page1,'programming')
 
 
 def generalbooks():
@@ -21,3 +22,4 @@ def generalbooks():
 
 def businessbooks():
     savebooks("https://www.goodreads.com/shelf/show/business", 'businessbooks')
+programmingbooks()
