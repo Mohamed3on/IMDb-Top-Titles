@@ -1,5 +1,6 @@
 import cgi
 import json
+import operator
 import urllib.request
 from pathlib import Path
 
@@ -116,11 +117,11 @@ def getEpscore(id):
 
 def getBooks(url):
     books = {}
+    soup = getSoup(url)
     chromeOptions = webdriver.ChromeOptions()
     prefs = {"profile.managed_default_content_settings.images": 2}
     chromeOptions.add_experimental_option("prefs", prefs)
     driver = webdriver.Chrome("C:/Users/Mohamed/chromedriver.exe", chrome_options=chromeOptions)
-    soup = getSoup(url)
     bypassed = 1
     for book in soup.find_all("a", class_="bookTitle"):
         title = book.text.strip('\n')
@@ -146,12 +147,16 @@ def getBookScore(url, driver):
         scores.append(int(s[s.find("(") + 1:s.find(")")]))
     return scores[0] - scores[-1]
 
-
+def sortandsave(scores,name):
+    scores=sortscores(scores)
+    savescores(scores,name)
 def savescores(scores, name):
     name += '.json'
     with open(name, 'w') as fp:
         json.dump(scores, fp)
-
+def sortscores(scores):
+    scores = sorted(scores.items(), key=operator.itemgetter(1), reverse=True)
+    return scores
 
 def loadfile(name):
     my_file = Path(name + ".json")
