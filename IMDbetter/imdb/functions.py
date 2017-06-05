@@ -1,3 +1,4 @@
+import cgi
 import json
 import operator
 import urllib.request
@@ -8,7 +9,7 @@ from selenium import webdriver
 
 
 # if found item with class next-page go to that item's href and append the scores, else return the scores
-def getMovies(scores, url, minScore, bypassed=0):
+def getMovies(scores, url, minScore):
     soup = getSoup(url)
     bypassed = 0
     for movie in soup.find_all("span", class_="lister-item-header"):
@@ -23,12 +24,12 @@ def getMovies(scores, url, minScore, bypassed=0):
             name, score = getTitleScore(id)
             if score > minScore:
                 bypassed = 0
-                if name[0] == "\"" and name[-1] == "\"": name = name[1:-1]
                 scores[name] = score, id
-                print(name, ":", str(score))
+                print(name)
+                print(score)
             else:
                 bypassed += 1
-                print("bypassed count:", str(bypassed))
+                print("bypassed count: ",str(bypassed))
         else:
             continue
     savescores(scores, 'scores')
@@ -41,7 +42,7 @@ def getMovies(scores, url, minScore, bypassed=0):
         url = nextdiv["href"]
         nexturl = 'http://www.imdb.com/search/title' + url
         print("next page")
-        return getMovies(scores, nexturl, minScore, bypassed)
+        return getMovies(scores, nexturl, minScore)
 
 
 def getSoup(url):
@@ -60,10 +61,7 @@ def getTitleScore(id):
 
     for link in soup.find_all('td'):
         if link.get('nowrap') == "1":
-            if (previous != "Average"):
-                ratings.append(int(previous))
-            else:
-                return name, 0
+            ratings.append(int(previous))
         else:
             previous = link.string
         if len(ratings) == 10: break
@@ -71,13 +69,10 @@ def getTitleScore(id):
     return name, score
 
 
-def getEpisodes(id,startingSeason=0):
-    url = 'http://www.imdb.com/title/' + id + '/eprate?ref_=tt_eps_rhs_sm'
+def getEpisodes(url):
     episodes = {}
     notselected = 0
-    cutoff = 0.5
     soup = getSoup(url)
-    title=soup.find("div", {"id": "tn15title"}).find("h1").text.split("\"")[1]
     table = soup.find("table")
     position = 1
     for ep in table.find_all("tr"):
@@ -86,24 +81,22 @@ def getEpisodes(id,startingSeason=0):
             continue
         if notselected >= 10:
             break
+
         href = ep.find("a")["href"]
         id = href.split('/')[2]
         episode = ep.find("td").text
-        if int(episode.split('.')[0])<startingSeason:
-            print(episode)
-            continue
         episode = episode.replace(u'\xa0', u'')
         name, score, sum = getEpscore(id)
-        if score / sum > cutoff:
+        if score / sum > 0.5:
             notselected = 0
             print(episode, name, score)
             episodes[str(episode)] = score, name
 
         else:
             notselected += 1
-            print("Not selected: " + str(notselected))
+            print("Not selected: "+str(notselected))
             continue
-    return episodes,title
+    return episodes
 
 
 def getEpscore(id):
@@ -156,22 +149,16 @@ def getBookScore(url, driver):
         scores.append(int(s[s.find("(") + 1:s.find(")")]))
     return scores[0] - scores[-1]
 
-
-def sortandsave(scores, name):
-    scores = sortscores(scores)
-    savescores(scores, name)
-
-
+def sortandsave(scores,name):
+    scores=sortscores(scores)
+    savescores(scores,name)
 def savescores(scores, name):
     name += '.json'
     with open(name, 'w') as fp:
         json.dump(scores, fp)
-
-
 def sortscores(scores):
-    sortedscores = sorted(scores.items(), key=operator.itemgetter(1), reverse=True)
-    return sortedscores
-
+    scores = sorted(scores.items(), key=operator.itemgetter(1), reverse=True)
+    return scores
 
 def loadfile(name):
     my_file = Path(name + ".json")
@@ -182,3 +169,12 @@ def loadfile(name):
     else:
         file = {}
     return file
+
+
+def unicodeToHTMLEntities(text):
+    """Converts unicode to HTML entities.  For example '&' becomes '&amp;'."""
+    text = cgi.escape(text).encode('ascii', 'xmlcharrefreplace')
+    if str(text).find("&") == -1:
+        return str(text)[1:]
+    else:
+        return str(text).split('b')[1].split("\'")[1]

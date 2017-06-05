@@ -1,5 +1,20 @@
+import operator
+
 import functions
-scores = functions.getEpisodes(
-    'http://www.imdb.com/title/tt2861424/eprate?ref_=tt_eps_rhs_sm')
+
+scores, name = functions.getEpisodes(
+    'tt1856010', 5)
 scores = sorted(scores.items(), key=operator.itemgetter(1), reverse=True)
-functions.savescores(scores, 'rick and morty')
+seasons = {}
+for episode in scores:
+    season = episode[0].split('.')[0]
+    score = episode[1][0]
+    if season not in seasons:
+        seasons[season] = score
+    else:
+        seasons[season] += score
+file = {}
+file['Seasons'] = sorted(seasons.items(), key=operator.itemgetter(1), reverse=True)
+file['Episodes'] = scores
+print(file)
+functions.savescores(file, name)
