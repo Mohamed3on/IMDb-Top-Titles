@@ -5,7 +5,7 @@ import functions
 
 def savebooks(books, name):
     sorteddata = sorted(books.items(), key=operator.itemgetter(1), reverse=True)
-    functions.savescores(sorteddata, name)
+    functions.savescores(sorteddata, name + 'books')
 
 
 def programmingbooks():
