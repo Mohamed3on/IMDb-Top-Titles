@@ -124,13 +124,10 @@ def getEpscore(id):
     return name, score, sum(ratings)
 
 
-def getBooks(url):
+def getBooks(url,driver):
     books = {}
-    soup = getSoup(url)
-    chromeOptions = webdriver.ChromeOptions()
-    prefs = {"profile.managed_default_content_settings.images": 2}
-    chromeOptions.add_experimental_option("prefs", prefs)
-    driver = webdriver.Chrome("C:/Users/Mohamed/chromedriver.exe", chrome_options=chromeOptions)
+    driver.get(url)
+    soup = bs4.BeautifulSoup(driver.page_source, "lxml")
     bypassed = 1
     for book in soup.find_all("a", class_="bookTitle"):
         title = book.text.strip('\n')
@@ -141,32 +138,9 @@ def getBooks(url):
         books[title] = score
         bypassed += 1
 
-    driver.close()
     return books
 
 
-#
-# def getBooksExp(url):
-#     books = {}
-#     chromeOptions = webdriver.ChromeOptions()
-#
-#     driver = webdriver.Chrome("C:/Users/Mohamed/chromedriver.exe", chrome_options=chromeOptions)
-#     driver.get(url)
-#     time.sleep(5)
-#     html = driver.page_source
-#     soup = bs4.BeautifulSoup(html, "lxml")
-#     bypassed = 1
-#     for book in soup.find_all("a", class_="bookTitle"):
-#         title = book.text.strip('\n')
-#         href = "https://www.goodreads.com" + book["href"]
-#         score = getBookScore(href, driver)
-#         print(str(bypassed) + ': ' + title)
-#         print(score)
-#         books[title] = score
-#         bypassed += 1
-#
-#     driver.close()
-#     return books
 def getBookScore(url, driver):
     driver.get(url)
     driver.find_element_by_id("rating_details").click()
