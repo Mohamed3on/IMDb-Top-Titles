@@ -4,7 +4,6 @@ import urllib.request
 from pathlib import Path
 
 import bs4
-from selenium import webdriver
 
 
 # if found item with class next-page go to that item's href and append the scores, else return the scores
@@ -23,7 +22,8 @@ def getMovies(scores, url, minScore, bypassed=0):
             name, score = getTitleScore(id)
             if score > minScore:
                 bypassed = 0
-                if name[0] == "\"" and name[-1] == "\"": name = name[1:-1]
+                if name[0] == "\"" and name[-1] == "\"":
+                    name = name[1:-1]
                 scores[name] = score, id
                 print(name, ":", str(score))
             else:
@@ -66,18 +66,20 @@ def getTitleScore(id):
                 return name, 0
         else:
             previous = link.string
-        if len(ratings) == 10: break
+        if len(ratings) == 10:
+            break
     score = ratings[0] + ratings[1] - ratings[-1] - ratings[-2]
     return name, score
 
 
-def getEpisodes(id,startingSeason=0):
+def getEpisodes(id, startingSeason=0):
     url = 'http://www.imdb.com/title/' + id + '/eprate?ref_=tt_eps_rhs_sm'
     episodes = {}
     notselected = 0
     cutoff = 0.5
     soup = getSoup(url)
-    title=soup.find("div", {"id": "tn15title"}).find("h1").text.split("\"")[1]
+    title = soup.find("div", {"id": "tn15title"}).find(
+        "h1").text.split("\"")[1]
     table = soup.find("table")
     position = 1
     for ep in table.find_all("tr"):
@@ -89,7 +91,7 @@ def getEpisodes(id,startingSeason=0):
         href = ep.find("a")["href"]
         id = href.split('/')[2]
         episode = ep.find("td").text
-        if int(episode.split('.')[0])<startingSeason:
+        if int(episode.split('.')[0]) < startingSeason:
             print(episode)
             continue
         episode = episode.replace(u'\xa0', u'')
@@ -103,7 +105,7 @@ def getEpisodes(id,startingSeason=0):
             notselected += 1
             print("Not selected: " + str(notselected))
             continue
-    return episodes,title
+    return episodes, title
 
 
 def getEpscore(id):
@@ -119,15 +121,15 @@ def getEpscore(id):
             ratings.append(int(previous))
         else:
             previous = link.string
-        if len(ratings) == 10: break
+        if len(ratings) == 10:
+            break
     score = ratings[0] + ratings[1] - ratings[-1] - ratings[-2]
     return name, score, sum(ratings)
 
 
-def getBooks(url,driver):
+def getPopularBooks(url, driver):
     books = {}
-    driver.get(url)
-    soup = bs4.BeautifulSoup(driver.page_source, "lxml")
+    soup = getSoup(url)
     bypassed = 1
     for book in soup.find_all("a", class_="bookTitle"):
         title = book.text.strip('\n')
@@ -138,6 +140,35 @@ def getBooks(url,driver):
         books[title] = score
         bypassed += 1
 
+    driver.close()
+    return books
+
+
+def getCategorizedBooks(baseurl, driver, seen=1, bypassed=0, books={}, page=1):
+    maxconsecutivebypassed = 10
+    url = baseurl + '?page=' + str(page)
+    driver.get(url)
+    soup = bs4.BeautifulSoup(driver.page_source, "lxml")
+    for book in soup.find_all("a", class_="bookTitle"):
+        title = book.text.strip('\n')
+        href = "https://www.goodreads.com" + book["href"]
+        score, totalvotes = getBookScore(href, driver)
+        minScore = totalvotes * 0.4
+        if score > minScore:
+            print(str(seen) + ': ' + title)
+            print(score)
+            books[title] = score
+            bypassed = 0
+        else:
+            bypassed += 1
+            print(str(seen) + ': ' + title)
+            print("score: " + str(score) + " too low, now " +
+                  str(bypassed) + " books bypassed")
+            books[title] = score
+        seen += 1
+        if bypassed >= maxconsecutivebypassed:
+            return books
+    getCategorizedBooks(baseurl, driver, seen, bypassed, books, page + 1)
     return books
 
 
@@ -150,7 +181,8 @@ def getBookScore(url, driver):
     for td in soup.find_all("td", width="90"):
         s = td.text
         scores.append(int(s[s.find("(") + 1:s.find(")")]))
-    return scores[0] - scores[-1]
+    score = scores[0] - scores[-1]
+    return score, sum(scores)
 
 
 def sortandsave(scores, name):
@@ -165,7 +197,8 @@ def savescores(scores, name):
 
 
 def sortscores(scores):
-    sortedscores = sorted(scores.items(), key=operator.itemgetter(1), reverse=True)
+    sortedscores = sorted(
+        scores.items(), key=operator.itemgetter(1), reverse=True)
     return sortedscores
 
 

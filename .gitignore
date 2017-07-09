@@ -2,4 +2,10 @@
 test.py
 /.idea
 /__pycache__
+/.vscode
 *.log
+*.pkl
+
+IMDbetter/imdb/__pycache__/
+
+*.pyc
