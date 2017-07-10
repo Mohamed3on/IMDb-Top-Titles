@@ -7,11 +7,11 @@ import goodreadsfunctions
 
 
 def setupDriver():
-    OPTIONS = webdriver.ChromeOptions()
+    options = webdriver.ChromeOptions()
     prefs = {"profile.managed_default_content_settings.images": 2}
-    OPTIONS.add_experimental_option("prefs", prefs)
+    options.add_experimental_option("prefs", prefs)
     thedriver = webdriver.Chrome(
-        "C:/Users/Mohamed/chromedriver.exe", chrome_options=OPTIONS)
+        "C:/Users/Mohamed/chromedriver.exe", chrome_options=options)
     return thedriver
 
 
@@ -23,8 +23,9 @@ def savebooks(books, name):
 
 def programmingbooks():
     driver = setupDriver()
+    driver = goodreadsfunctions.goodreads_login(driver)
     books = goodreadsfunctions.getCategorizedBooks(
-        "https://www.goodreads.com/shelf/show/programming", driver)
+        "https://www.goodreads.com/shelf/show/programming", driver, minScore=200)
     driver.close()
     savebooks(books, 'programming')
 
@@ -36,8 +37,8 @@ def generalbooks():
     morethanmillion = goodreadsfunctions.getPopularBooks(
         "https://www.goodreads.com/list/show/35080.One_million_ratings_", driver)
     driver.close()
-    combined = {**morethanmillion,**mostread}
+    combined = {**morethanmillion, **mostread}
     savebooks(combined, 'generalbooks')
 
 
-generalbooks()
+programmingbooks()
