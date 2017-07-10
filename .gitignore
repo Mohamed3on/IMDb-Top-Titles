@@ -9,3 +9,9 @@ test.py
 IMDbetter/imdb/__pycache__/
 
 *.pyc
+
+login\.py
+
+buzzsumo\.py
+
+sortssavedscores\.py
