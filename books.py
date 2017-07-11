@@ -21,13 +21,15 @@ def savebooks(books, name):
     commonfunctions.savescores(sorteddata, name + 'books')
 
 
-def programmingbooks():
+def categorized_books(genre="programming", minScore=200){
     driver = setupDriver()
     driver = goodreadsfunctions.goodreads_login(driver)
+    url = "https://www.goodreads.com/shelf/show/" + genre
     books = goodreadsfunctions.getCategorizedBooks(
-        "https://www.goodreads.com/shelf/show/programming", driver, minScore=200)
+        url, driver, minScore)
     driver.close()
-    savebooks(books, 'programming')
+    savebooks(books, genre)
+}
 
 
 def generalbooks():
@@ -41,4 +43,4 @@ def generalbooks():
     savebooks(combined, 'generalbooks')
 
 
-programmingbooks()
+categorized_books()
