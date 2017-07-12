@@ -11,13 +11,11 @@ def getPopularBooks(url, driver):
     for book in soup.find_all("a", class_="bookTitle"):
         title = book.text.strip('\n')
         href = "https://www.goodreads.com" + book["href"]
-        score, totalVotes = getBookScore(href, driver)
+        score = getBookScore(href, driver)[0]
         print(str(seen) + ': ' + title)
         print(score)
         books[title] = score
         seen += 1
-
-    driver.close()
     return books
 
 
