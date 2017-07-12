@@ -29,8 +29,7 @@ def goodreads_login(driver):
     return driver
 
 
-def getCategorizedBooks(baseurl, driver, seen=0, bypassed=0, books={}, page=1, minScore=0):
-    maxconsecutivebypassed = 10
+def getCategorizedBooks(baseurl, driver, seen=0, bypassed=0, books={}, page=1, minscore=0, maxconsecutivebypassed=10):
     url = baseurl + '?page=' + str(page)
     driver.get(url)
     soup = bs4.BeautifulSoup(driver.page_source, "lxml")
@@ -43,7 +42,7 @@ def getCategorizedBooks(baseurl, driver, seen=0, bypassed=0, books={}, page=1, m
         title = book.text.strip('\n') + ' by ' + author
         href = "https://www.goodreads.com" + book["href"]
         score, totalvotes = getBookScore(href, driver)
-        cutoff = max(totalvotes * 0.4, minScore)
+        cutoff = max(totalvotes * 0.4, minscore)
         if score > cutoff:
             print(str(seen) + ': ' + title)
             print(score)
@@ -57,7 +56,7 @@ def getCategorizedBooks(baseurl, driver, seen=0, bypassed=0, books={}, page=1, m
             return books
 
     getCategorizedBooks(baseurl, driver, seen, bypassed,
-                        books, int(page) + 1, minScore)
+                        books, int(page) + 1, minscore)
 
     return books
 
