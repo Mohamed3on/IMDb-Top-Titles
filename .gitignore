@@ -5,7 +5,8 @@ test.py
 /.vscode
 *.log
 *.pkl
-
+/shows
+/books
 IMDbetter/imdb/__pycache__/
 
 *.pyc

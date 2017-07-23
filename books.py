@@ -21,12 +21,12 @@ def savebooks(books, name):
     commonfunctions.savescores(sorteddata, 'books/' + name)
 
 
-def categorized_books(genre='programming', minscore=200, maxconsecutivebypassed=10):
+def categorized_books(genre='programming', minscore=200, maxconsecutivebypassed=10, minRatio=0.4):
     driver = setup_driver()
     driver = goodreadsfunctions.goodreads_login(driver)
     url = "https://www.goodreads.com/shelf/show/" + genre
     books = goodreadsfunctions.getCategorizedBooks(
-        url, driver, minscore=minscore, maxconsecutivebypassed=maxconsecutivebypassed)
+        url, driver, minscore=minscore, maxconsecutivebypassed=maxconsecutivebypassed, minRatio=minRatio)
     driver.close()
     savebooks(books, genre)
 
@@ -39,7 +39,7 @@ def generalbooks():
         "https://www.goodreads.com/list/show/35080.One_million_ratings_", driver)
     driver.close()
     combined = {**morethanmillion, **mostread}
-    savebooks(combined, 'generalbooks')
+    savebooks(combined, 'general')
 
 
-categorized_books('economics', 5000)
+categorized_books('non-fiction', 20000, 10)

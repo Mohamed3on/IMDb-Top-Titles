@@ -2,11 +2,11 @@
 from commonfunctions import savescores, getSoup
 
 
-def getMovies(scores, url, minScore, bypassed=0):
+def getMovies(scores, url, minScore=40000, bypassed=0, minratio=0.4, maxbypassed=10):
     soup = getSoup(url)
     bypassed = 0
     for movie in soup.find_all("span", class_="lister-item-header"):
-        if bypassed > 20:
+        if bypassed > maxbypassed:
             savescores(scores, 'scores')
             return scores
         for title in movie.find_all("a"):
@@ -14,8 +14,8 @@ def getMovies(scores, url, minScore, bypassed=0):
             moviename = title.text
         id = url.split('/')[2]
         if moviename not in scores:
-            name, score = getTitleScore(id)
-            if score > minScore:
+            name, score, ratio = getTitleScore(id)
+            if score > minScore and ratio > minratio:
                 bypassed = 0
                 if name[0] == "\"" and name[-1] == "\"":
                     name = name[1:-1]
@@ -36,7 +36,7 @@ def getMovies(scores, url, minScore, bypassed=0):
         url = nextdiv["href"]
         nexturl = 'http://www.imdb.com/search/title' + url
         print("next page")
-        return getMovies(scores, nexturl, minScore, bypassed)
+        return getMovies(scores, nexturl, minScore, bypassed, minratio, maxbypassed)
 
 
 def getTitleScore(id):
@@ -58,14 +58,14 @@ def getTitleScore(id):
         if len(ratings) == 10:
             break
     score = ratings[0] + ratings[1] - ratings[-1] - ratings[-2]
-    return name, score
+    ratio = score / sum(ratings)
+    return name, score, ratio
 
 
-def getEpisodes(id, startingSeason=0):
+def getEpisodes(id, startingSeason=0, minRatio=0.45):
     url = 'http://www.imdb.com/title/' + id + '/eprate?ref_=tt_eps_rhs_sm'
     episodes = {}
     notselected = 0
-    cutoff = 0.5
     soup = getSoup(url)
     title = soup.find("div", {"id": "tn15title"}).find(
         "h1").text.split("\"")[1]
@@ -85,7 +85,7 @@ def getEpisodes(id, startingSeason=0):
             continue
         episode = episode.replace(u'\xa0', u'')
         name, score, sum = getEpscore(id)
-        if score / sum > cutoff:
+        if score / sum > minRatio:
             notselected = 0
             print(episode, name, score)
             episodes[str(episode)] = score, name
