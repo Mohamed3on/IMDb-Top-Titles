@@ -4,7 +4,6 @@ from commonfunctions import savescores, getSoup
 
 def getMovies(scores, url, minScore=40000, bypassed=0, minratio=0.4, maxbypassed=10):
     soup = getSoup(url)
-    bypassed = 0
     for movie in soup.find_all("span", class_="lister-item-header"):
         if bypassed > maxbypassed:
             savescores(scores, 'scores')
@@ -15,11 +14,9 @@ def getMovies(scores, url, minScore=40000, bypassed=0, minratio=0.4, maxbypassed
         id = url.split('/')[2]
         if moviename not in scores:
             name, score, ratio = getTitleScore(id)
+            scores[name] = score, id
             if score > minScore and ratio > minratio:
                 bypassed = 0
-                if name[0] == "\"" and name[-1] == "\"":
-                    name = name[1:-1]
-                scores[name] = score, id
                 print(name, ":", str(score))
             else:
                 bypassed += 1
@@ -59,7 +56,9 @@ def getTitleScore(id):
             break
     score = ratings[0] + ratings[1] - ratings[-1] - ratings[-2]
     ratio = score / sum(ratings)
-    return name, score, ratio
+    if name[0] == "\"" and name[-1] == "\"":
+        name = name[1:-1]
+    return name.strip(), score, ratio
 
 
 def getEpisodes(id, startingSeason=0, minRatio=0.45):
