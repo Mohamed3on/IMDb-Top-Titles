@@ -10,8 +10,7 @@ def setup_driver():
     options = webdriver.ChromeOptions()
     prefs = {"profile.managed_default_content_settings.images": 2}
     options.add_experimental_option("prefs", prefs)
-    thedriver = webdriver.Chrome(
-        "C:/Users/Mohamed/chromedriver.exe", chrome_options=options)
+    thedriver = webdriver.Chrome(chrome_options=options)
     return thedriver
 
 
@@ -42,4 +41,4 @@ def generalbooks():
     savebooks(combined, 'general')
 
 
-categorized_books('non-fiction', 20000, 10)
+categorized_books('computer-science')
