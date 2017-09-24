@@ -22,6 +22,7 @@ def getMovies(scores, url, minScore=40000, bypassed=0, minratio=0.4, maxbypassed
                 bypassed += 1
                 print("bypassed count:", str(bypassed))
         else:
+            print(moviename + " already in scores")
             continue
     savescores(scores, 'scores')
     desc = soup.find("div", class_="desc")
