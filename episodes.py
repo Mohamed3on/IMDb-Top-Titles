@@ -2,9 +2,10 @@ import operator
 
 import commonfunctions
 import imdbfunctions
-SHOW_ID = 'tt0306414'
+
+SHOW_ID = 'tt2707408'
 episodes, name = imdbfunctions.getEpisodes(
-    SHOW_ID)
+    SHOW_ID, startingSeason=3, minRatio=0.4)
 scores = sorted(episodes.items(), key=operator.itemgetter(1), reverse=True)
 seasons = {}
 for episode in scores:
@@ -30,4 +31,4 @@ file['EpisodesSorted'] = scores
 chronological = sorted(episodes.items(), key=operator.itemgetter(0))
 file['EpisodesChronological'] = chronological
 print(file)
-commonfunctions.savescores(file, 'shows/' + name)
+commonfunctions.savescoresUnicode(file, 'shows/' + name)

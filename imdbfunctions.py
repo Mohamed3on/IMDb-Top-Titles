@@ -14,7 +14,7 @@ def getMovies(scores, url, minScore=40000, bypassed=0, minratio=0.4, maxbypassed
         id = url.split('/')[2]
         if moviename not in scores:
             name, score, ratio = getTitleScore(id)
-            scores[name] = score, id
+            scores[name] = score, id, 'http://www.imdb.com' + url
             if score > minScore and ratio > minratio:
                 bypassed = 0
                 print(name, ":", str(score))
@@ -62,7 +62,7 @@ def getTitleScore(id):
     return name.strip(), score, ratio
 
 
-def getEpisodes(id, startingSeason=0, minRatio=0.45):
+def getEpisodes(id, startingSeason=1, minRatio=0.4):
     url = 'http://www.imdb.com/title/' + id + '/eprate?ref_=tt_eps_rhs_sm'
     episodes = {}
     notselected = 0
@@ -85,14 +85,15 @@ def getEpisodes(id, startingSeason=0, minRatio=0.45):
             continue
         episode = episode.replace(u'\xa0', u'')
         name, score, sum = getEpscore(id)
-        if score / sum > minRatio:
+        episodeRatio = score / sum
+        if episodeRatio > minRatio:
             notselected = 0
             print(episode, name, score)
             episodes[str(episode)] = score, name
 
         else:
             notselected += 1
-            print("Not selected: " + str(notselected))
+            print("Not selected " + str(notselected) + ": " + name)
             continue
     return episodes, title
 
@@ -101,16 +102,14 @@ def getEpscore(id):
     url = 'http://www.imdb.com/title/' + id + '/ratings'
     soup = getSoup(url)
     ratings = []
-    previous = 1
-    for i in soup.find_all("a", class_="main"):
-        name = i.string
+    i = soup.find("h3")
+    name = i.find("a").text
 
-    for link in soup.find_all('td'):
-        if link.get('nowrap') == "1":
-            ratings.append(int(previous))
+    for bucket in soup.find_all('div', class_="leftAligned"):
+        value = bucket.text.replace(',', '')
+        if value.isdigit():
+            ratings.append(int(value))
         else:
-            previous = link.string
-        if len(ratings) == 10:
-            break
+            continue
     score = ratings[0] + ratings[1] - ratings[-1] - ratings[-2]
     return name, score, sum(ratings)

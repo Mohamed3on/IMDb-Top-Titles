@@ -17,10 +17,10 @@ def setup_driver():
 def savebooks(books, name):
     sorteddata = sorted(
         books.items(), key=operator.itemgetter(1), reverse=True)
-    commonfunctions.savescores(sorteddata, 'books/' + name)
+    commonfunctions.savescoresUnicode(sorteddata, 'books/' + name)
 
 
-def categorized_books(genre='programming', minscore=200, maxconsecutivebypassed=10, minRatio=0.4):
+def categorized_books(genre='programming', minscore=200, maxconsecutivebypassed=20, minRatio=0.4):
     driver = setup_driver()
     driver = goodreadsfunctions.goodreads_login(driver)
     url = "https://www.goodreads.com/shelf/show/" + genre
@@ -38,7 +38,7 @@ def generalbooks():
         "https://www.goodreads.com/list/show/35080.One_million_ratings_", driver)
     driver.close()
     combined = {**morethanmillion, **mostread}
-    savebooks(combined, 'general')
+    savebooks(combined, 'generalbooks')
 
 
-categorized_books('programming')
+categorized_books('to-read', 800000)

@@ -39,7 +39,9 @@ def getCategorizedBooks(baseurl, driver, seen=0, bypassed=0, books={}, page=1, m
         if seen % 50 == 1 and seen > 50:
             break
         book = element.find("a", "bookTitle")
-        author = element.find("a", class_="authorName").text
+        author = "Unknown"
+        if element.find("a", class_="authorName"):
+            author = element.find("a", class_="authorName").text
         title = book.text.strip('\n') + ' by ' + author
         href = "https://www.goodreads.com" + book["href"]
         score, totalvotes = getBookScore(href, driver)
@@ -48,7 +50,7 @@ def getCategorizedBooks(baseurl, driver, seen=0, bypassed=0, books={}, page=1, m
             count = count + 1
             print(str(count) + ': ' + title)
             print(score)
-            books[title] = score
+            books[title] = score, href
             bypassed = 0
         else:
             bypassed += 1
