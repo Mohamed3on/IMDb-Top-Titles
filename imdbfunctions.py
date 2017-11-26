@@ -41,20 +41,15 @@ def getTitleScore(id):
     url = 'http://www.imdb.com/title/' + id + '/ratings'
     soup = getSoup(url)
     ratings = []
-    previous = 1
-    for i in soup.find_all("a", class_="main"):
-        name = i.string
+    i = soup.find("h3")
+    name = i.find("a").text
 
-    for link in soup.find_all('td'):
-        if link.get('nowrap') == "1":
-            if (previous != "Average"):
-                ratings.append(int(previous))
-            else:
-                return name, 0
+    for bucket in soup.find_all('div', class_="leftAligned"):
+        value = bucket.text.replace(',', '')
+        if value.isdigit():
+            ratings.append(int(value))
         else:
-            previous = link.string
-        if len(ratings) == 10:
-            break
+            continue
     score = ratings[0] + ratings[1] - ratings[-1] - ratings[-2]
     ratio = score / sum(ratings)
     if name[0] == "\"" and name[-1] == "\"":
