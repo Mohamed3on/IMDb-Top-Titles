@@ -2,8 +2,11 @@
 from commonfunctions import savescores, getSoup
 
 
-def getMovies(scores, url, minScore=40000, bypassed=0, minratio=0.4, maxbypassed=10):
+def getMovies(scores, url, minScore=40000, bypassed=0, minratio=0.4, maxbypassed=10, startFrom=None):
     soup = getSoup(url)
+    startNow = True
+    if startFrom:
+        startNow = False
     for movie in soup.find_all("span", class_="lister-item-header"):
         if bypassed > maxbypassed:
             savescores(scores, 'scores')
@@ -11,10 +14,15 @@ def getMovies(scores, url, minScore=40000, bypassed=0, minratio=0.4, maxbypassed
         for title in movie.find_all("a"):
             url = title["href"]
             moviename = title.text
-        id = url.split('/')[2]
+            titleID = url.split('/')[2]
+        if startNow is False:
+            if startFrom != titleID:
+                continue
+            else:
+                startNow = True
         if moviename not in scores:
-            name, score, ratio = getTitleScore(id)
-            scores[name] = score, id, 'http://www.imdb.com' + url
+            name, score, ratio = getTitleScore(titleID)
+            scores[name] = score, 'http://www.imdb.com' + url
             if score > minScore and ratio > minratio:
                 bypassed = 0
                 print(name, ":", str(score))
@@ -37,8 +45,8 @@ def getMovies(scores, url, minScore=40000, bypassed=0, minratio=0.4, maxbypassed
         return getMovies(scores, nexturl, minScore, bypassed, minratio, maxbypassed)
 
 
-def getTitleScore(id):
-    url = 'http://www.imdb.com/title/' + id + '/ratings'
+def getTitleScore(titleID):
+    url = 'http://www.imdb.com/title/' + titleID + '/ratings'
     soup = getSoup(url)
     ratings = []
     i = soup.find("h3")
@@ -57,8 +65,8 @@ def getTitleScore(id):
     return name.strip(), score, ratio
 
 
-def getEpisodes(id, startingSeason=1, minRatio=0.4):
-    url = 'http://www.imdb.com/title/' + id + '/eprate?ref_=tt_eps_rhs_sm'
+def getEpisodes(titleID, startingSeason=1, minRatio=0.4):
+    url = 'http://www.imdb.com/title/' + titleID + '/eprate?ref_=tt_eps_rhs_sm'
     episodes = {}
     notselected = 0
     soup = getSoup(url)
@@ -73,14 +81,14 @@ def getEpisodes(id, startingSeason=1, minRatio=0.4):
         if notselected >= 10:
             break
         href = ep.find("a")["href"]
-        id = href.split('/')[2]
+        titleID = href.split('/')[2]
         episode = ep.find("td").text
         if int(episode.split('.')[0]) < startingSeason:
             print(episode)
             continue
         episode = episode.replace(u'\xa0', u'')
-        name, score, sum = getEpscore(id)
-        episodeRatio = score / sum
+        name, score, ratingsSum = getEpscore(titleID)
+        episodeRatio = score / ratingsSum
         if episodeRatio > minRatio:
             notselected = 0
             print(episode, name, score)
@@ -93,8 +101,8 @@ def getEpisodes(id, startingSeason=1, minRatio=0.4):
     return episodes, title
 
 
-def getEpscore(id):
-    url = 'http://www.imdb.com/title/' + id + '/ratings'
+def getEpscore(titleID):
+    url = 'http://www.imdb.com/title/' + titleID + '/ratings'
     soup = getSoup(url)
     ratings = []
     i = soup.find("h3")
