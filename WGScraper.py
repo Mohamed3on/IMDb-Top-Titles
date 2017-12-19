@@ -12,10 +12,10 @@ def is_long_term(ad):
     try:
         move_out = ad.find(
             "p", attrs={'style': 'line-height: 1.2em;'}).text.strip().split('-')[-1].split('.')
-        if int(move_out[1]) < EARLIEST_MOVE_OUT_MONTH or int(move_out[2]) < EARLIEST_MOVE_OUT_YEAR:
-            return False
-        else:
-            return True
+        if move_out[0].strip().isdigit():
+            if int(move_out[1]) < EARLIEST_MOVE_OUT_MONTH or int(move_out[2]) < EARLIEST_MOVE_OUT_YEAR:
+                return False
+        return True
     except:
         return True
 
