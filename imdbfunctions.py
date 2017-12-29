@@ -66,28 +66,29 @@ def getTitleScore(titleID):
 
 
 def getEpisodes(titleID, startingSeason=1, minRatio=0.4):
-    url = 'http://www.imdb.com/title/' + titleID + '/eprate?ref_=tt_eps_rhs_sm'
+
     episodes = {}
     notselected = 0
+    episodes, title = getSeason(
+        startingSeason, titleID, notselected, minRatio, episodes)
+    return episodes, title
+
+
+def getSeason(currentSeason, titleID, notselected, minRatio, episodes):
+    url = 'http://www.imdb.com/title/' + titleID + \
+        '/episodes?season=' + str(currentSeason)
     soup = getSoup(url)
-    title = soup.find("div", {"id": "tn15title"}).find(
-        "h1").text.split("\"")[1]
-    table = soup.find("table")
-    position = 1
-    for ep in table.find_all("tr"):
-        if position == 1:
-            position += 1
-            continue
+    title = soup.find("a", class_="subnav_heading").text
+    episodeNumber = 0
+    for ep in soup.find_all("div", class_="list_item"):
         if notselected >= 10:
-            break
-        href = ep.find("a")["href"]
-        titleID = href.split('/')[2]
-        episode = ep.find("td").text
-        if int(episode.split('.')[0]) < startingSeason:
-            print(episode)
-            continue
-        episode = episode.replace(u'\xa0', u'')
-        name, score, ratingsSum = getEpscore(titleID)
+            return episodes, title
+        episodeNumber += 1
+        episodeTitle = ep.find("a", {"itemprop": "name"})
+        href = episodeTitle.attrs["href"]
+        episodeID = href.split('/')[2]
+        episode = str(currentSeason) + '.' + str(episodeNumber)
+        name, score, ratingsSum = getEpscore(episodeID)
         episodeRatio = score / ratingsSum
         if episodeRatio > minRatio:
             notselected = 0
@@ -96,9 +97,13 @@ def getEpisodes(titleID, startingSeason=1, minRatio=0.4):
 
         else:
             notselected += 1
-            print("Not selected " + str(notselected) + ": " + name)
+            print("Not selected " + str(notselected) +
+                  ": " + episode + ' ' + name)
             continue
-    return episodes, title
+    if soup.find("a", {"id": "load_next_episodes"}):
+        return getSeason(currentSeason + 1, titleID, notselected, minRatio, episodes)
+    else:
+        return episodes, title
 
 
 def getEpscore(titleID):
