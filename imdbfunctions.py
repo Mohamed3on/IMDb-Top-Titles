@@ -2,27 +2,19 @@
 from commonfunctions import savescores, getSoup
 
 
-def getMovies(scores, url, minScore=40000, bypassed=0, minratio=0.4, maxbypassed=10, startFrom=None):
+def getMovies(scores, url, minScore=40000, bypassed=0, minratio=0.4, maxbypassed=10):
     soup = getSoup(url)
-    startNow = True
-    if startFrom:
-        startNow = False
     for movie in soup.find_all("span", class_="lister-item-header"):
         if bypassed > maxbypassed:
             savescores(scores, 'scores')
             return scores
-        for title in movie.find_all("a"):
-            url = title["href"]
-            moviename = title.text
-            titleID = url.split('/')[2]
-        if startNow is False:
-            if startFrom != titleID:
-                continue
-            else:
-                startNow = True
+        title = movie.find("a")
+        url = title["href"]
+        moviename = title.text
+        titleID = url.split('/')[2]
         if moviename not in scores:
             name, score, ratio = getTitleScore(titleID)
-            scores[name] = score, 'http://www.imdb.com' + url
+            scores[name] = score, 'http://www.imdb.com/title/' + titleID
             if score > minScore and ratio > minratio:
                 bypassed = 0
                 print(name, ":", str(score))
