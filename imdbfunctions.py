@@ -4,8 +4,10 @@ from commonfunctions import savescores, getSoup
 
 def getMovies(scores, url, minScore=40000, bypassed=0, minratio=0.4, maxbypassed=10):
     soup = getSoup(url)
+    moviename = ''
     for movie in soup.find_all("span", class_="lister-item-header"):
         if bypassed > maxbypassed:
+            print("last title: " + moviename)
             savescores(scores, 'scores')
             return scores
         title = movie.find("a")
@@ -80,7 +82,11 @@ def getSeason(currentSeason, titleID, notselected, minRatio, episodes):
         href = episodeTitle.attrs["href"]
         episodeID = href.split('/')[2]
         episode = str(currentSeason) + '.' + str(episodeNumber)
-        name, score, ratingsSum = getEpscore(episodeID)
+        result = getEpscore(episodeID)
+        if result:
+            name, score, ratingsSum = result
+        else:
+            return episodes, title
         episodeRatio = score / ratingsSum
         if episodeRatio > minRatio:
             notselected = 0
@@ -111,5 +117,8 @@ def getEpscore(titleID):
             ratings.append(int(value))
         else:
             continue
-    score = ratings[0] + ratings[1] - ratings[-1] - ratings[-2]
-    return name, score, sum(ratings)
+    if len(ratings) < 1:
+        return None
+    else:
+        score = ratings[0] + ratings[1] - ratings[-1] - ratings[-2]
+        return name, score, sum(ratings)
