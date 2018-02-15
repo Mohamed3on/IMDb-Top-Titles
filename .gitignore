@@ -10,9 +10,8 @@ test.py
 IMDbetter/imdb/__pycache__/
 
 *.pyc
-
+*.txt
 login\.py
 
 buzzsumo\.py
 
-sortssavedscores\.py
