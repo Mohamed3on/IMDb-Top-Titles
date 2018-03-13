@@ -1,5 +1,5 @@
 import bs4
-
+import time
 import login
 
 
@@ -54,25 +54,34 @@ def getCategorizedBooks(baseurl, driver, bypassed=0, books={}, page=1, minscore=
             bypassed = 0
         else:
             bypassed += 1
-            print("score (" + str(score) + ") is too low, now " +
+            print("score of (" + title + ") is too low, now " +
                   str(bypassed) + " books bypassed")
         if bypassed >= maxconsecutivebypassed:
             return books
 
     getCategorizedBooks(baseurl, driver, bypassed,
-                        books, int(page) + 1, minscore)
+                        books, int(page) + 1, minscore, maxconsecutivebypassed, minRatio)
 
     return books
 
 
-def getBookScore(url, driver):
-    driver.get(url)
-    driver.find_element_by_id("rating_details").click()
+def ClickButtonAndGetScores(div_id, driver, sleep_period):
+    driver.find_element_by_id(div_id).click()
+    if sleep_period != 0:
+        time.sleep(sleep_period)
     html = driver.page_source
     soup = bs4.BeautifulSoup(html, "lxml")
     scores = []
     for td in soup.find_all("td", width="90"):
         s = td.text
         scores.append(int(s[s.find("(") + 1:s.find(")")]))
+    return scores
+
+
+def getBookScore(url, driver):
+    driver.get(url)
+    scores = ClickButtonAndGetScores("rating_details", driver, 0)
+    if scores == []:
+        scores = ClickButtonAndGetScores("rating_details", driver, 0.5)
     score = scores[0] - scores[-1]
     return score, sum(scores)
