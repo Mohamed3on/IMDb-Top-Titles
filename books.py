@@ -1,5 +1,5 @@
 import operator
-
+import os
 from selenium import webdriver
 
 import commonfunctions
@@ -28,6 +28,7 @@ def categorized_books(genre='programming', minscore=200, maxconsecutivebypassed=
         url, driver, minscore=minscore, maxconsecutivebypassed=maxconsecutivebypassed, minRatio=minRatio)
     driver.close()
     savebooks(books, genre)
+    os.system('start books/' + genre + '.json')
 
 
 def generalbooks():
@@ -41,4 +42,5 @@ def generalbooks():
     savebooks(combined, 'generalbooks')
 
 
-categorized_books('to-read', 800000)
+categorized_books('classics', minscore=32000,
+                  minRatio=0.35, maxconsecutivebypassed=10)
