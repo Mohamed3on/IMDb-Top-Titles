@@ -37,6 +37,9 @@ def getCategorizedBooks(baseurl, driver, bypassed=0, books={}, page=1, minscore=
     for element in soup.find_all("div", class_="elementList"):
         book = element.find("a", "bookTitle")
         author = "Unknown"
+        rating = element.find("div", "ratingStars")
+        if 'hasRating' in rating.get("class"):
+            continue
         if element.find("a", class_="authorName"):
             author = element.find("a", class_="authorName").text
         try:
@@ -66,16 +69,19 @@ def getCategorizedBooks(baseurl, driver, bypassed=0, books={}, page=1, minscore=
 
 
 def ClickButtonAndGetScores(div_id, driver, sleep_period):
-    driver.find_element_by_id(div_id).click()
-    if sleep_period != 0:
-        time.sleep(sleep_period)
-    html = driver.page_source
-    soup = bs4.BeautifulSoup(html, "lxml")
-    scores = []
-    for td in soup.find_all("td", width="90"):
-        s = td.text
-        scores.append(int(s[s.find("(") + 1:s.find(")")]))
-    return scores
+    try:
+        driver.find_element_by_id(div_id).click()
+        if sleep_period != 0:
+            time.sleep(sleep_period)
+        html = driver.page_source
+        soup = bs4.BeautifulSoup(html, "lxml")
+        scores = []
+        for td in soup.find_all("td", width="90"):
+            s = td.text
+            scores.append(int(s[s.find("(") + 1:s.find(")")]))
+        return scores
+    except:
+        return []
 
 
 def getBookScore(url, driver):
