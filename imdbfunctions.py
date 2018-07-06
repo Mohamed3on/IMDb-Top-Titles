@@ -91,7 +91,7 @@ def getSeason(currentSeason, titleID, notselected, minRatio, episodes):
         if episodeRatio > minRatio:
             notselected = 0
             print(episode, name, score)
-            episodes[str(episode)] = score, name
+            episodes[str(episode)] = score, name, round(episodeRatio, 2)
 
         else:
             notselected += 1
