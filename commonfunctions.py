@@ -2,6 +2,7 @@ import json
 import operator
 import urllib.request
 from pathlib import Path
+from selenium import webdriver
 
 import bs4
 
@@ -55,3 +56,16 @@ def getSoup(url):
     with urllib.request.urlopen(url) as url:
         r = url.read()
     return bs4.BeautifulSoup(r, "lxml")
+
+
+def getSoupFromHTML(HTML):
+    return bs4.BeautifulSoup(HTML, 'lxml')
+
+
+def setup_driver():
+    options = webdriver.ChromeOptions()
+    prefs = {"profile.managed_default_content_settings.images": 2}
+    options.add_argument("--headless")
+    options.add_experimental_option("prefs", prefs)
+    thedriver = webdriver.Chrome(chrome_options=options)
+    return thedriver

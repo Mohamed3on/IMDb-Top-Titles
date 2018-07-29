@@ -1,9 +1,26 @@
 # if found item with class next-page go to that item's href and append the scores, else return the scores
-from commonfunctions import savescores, getSoup
+from commonfunctions import savescores, getSoupFromHTML, getSoup, setup_driver
+import login
+import time
+
+
+def getIMDBSoupAfterLogin(url):
+    driver = setup_driver()
+    driver.get(url)
+    driver.find_element_by_id('nblogin').click()
+    driver.find_elements_by_class_name('list-group-item')[3].click()
+    mailinput = driver.find_element_by_name('email')
+    passinput = driver.find_element_by_name('password')
+    mailinput.send_keys(login.imdbEmail)
+    passinput.send_keys(login.imdbPassword)
+    driver.find_element_by_id('signInSubmit').click()
+    soup = getSoupFromHTML(driver.page_source)
+    driver.close()
+    return soup
 
 
 def getMovies(scores, url, minScore=40000, bypassed=0, minratio=0.4, maxbypassed=10):
-    soup = getSoup(url)
+    soup = getIMDBSoupAfterLogin(url)
     moviename = ''
     for movie in soup.find_all("span", class_="lister-item-header"):
         if bypassed > maxbypassed:
@@ -14,9 +31,10 @@ def getMovies(scores, url, minScore=40000, bypassed=0, minratio=0.4, maxbypassed
         url = title["href"]
         moviename = title.text
         titleID = url.split('/')[2]
+        titleURL = 'http://www.imdb.com/title/' + titleID
         if moviename not in scores:
             name, score, ratio = getTitleScore(titleID)
-            scores[name] = score, 'http://www.imdb.com/title/' + titleID
+            scores[titleURL] = score, name
             if score > minScore and ratio > minratio:
                 bypassed = 0
                 print(name, ":", str(score))
@@ -68,14 +86,14 @@ def getEpisodes(titleID, startingSeason=1, minRatio=0.4):
     return episodes, title
 
 
-def getSeason(currentSeason, titleID, notselected, minRatio, episodes):
+def getSeason(currentSeason, titleID, notselected, minRatio, episodes, max_not_selected=10):
     url = 'http://www.imdb.com/title/' + titleID + \
         '/episodes?season=' + str(currentSeason)
     soup = getSoup(url)
     title = soup.find("a", class_="subnav_heading").text
     episodeNumber = 0
     for ep in soup.find_all("div", class_="list_item"):
-        if notselected >= 10:
+        if notselected >= max_not_selected:
             return episodes, title
         episodeNumber += 1
         episodeTitle = ep.find("a", {"itemprop": "name"})
