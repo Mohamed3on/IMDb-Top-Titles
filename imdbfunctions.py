@@ -14,6 +14,7 @@ def getIMDBSoupAfterLogin(url):
     mailinput.send_keys(login.imdbEmail)
     passinput.send_keys(login.imdbPassword)
     driver.find_element_by_id('signInSubmit').click()
+    time.sleep(2)
     soup = getSoupFromHTML(driver.page_source)
     driver.close()
     return soup
@@ -32,7 +33,7 @@ def getMovies(scores, url, minScore=40000, bypassed=0, minratio=0.4, maxbypassed
         moviename = title.text
         titleID = url.split('/')[2]
         titleURL = 'http://www.imdb.com/title/' + titleID
-        if moviename not in scores:
+        if titleURL not in scores:
             name, score, ratio = getTitleScore(titleID)
             scores[titleURL] = score, name
             if score > minScore and ratio > minratio:
@@ -77,12 +78,12 @@ def getTitleScore(titleID):
     return name.strip(), score, ratio
 
 
-def getEpisodes(titleID, startingSeason=1, minRatio=0.4):
+def getEpisodes(titleID, startingSeason=1, minRatio=0.4, max_not_selected=10):
 
     episodes = {}
     notselected = 0
     episodes, title = getSeason(
-        startingSeason, titleID, notselected, minRatio, episodes)
+        startingSeason, titleID, notselected, minRatio, episodes, max_not_selected)
     return episodes, title
 
 
