@@ -118,7 +118,7 @@ def getSeason(currentSeason, titleID, notselected, minRatio, episodes, max_not_s
                   ": " + episode + ' ' + name)
             continue
     if soup.find("a", {"id": "load_next_episodes"}):
-        return getSeason(currentSeason + 1, titleID, notselected, minRatio, episodes)
+        return getSeason(currentSeason + 1, titleID, notselected, minRatio, episodes, max_not_selected)
     else:
         return episodes, title
 
