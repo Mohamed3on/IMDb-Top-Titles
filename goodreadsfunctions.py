@@ -34,7 +34,9 @@ def getCategorizedBooks(baseurl, driver, bypassed=0, books={}, page=1, minscore=
     url = baseurl + '?page=' + str(page)
     driver.get(url)
     soup = bs4.BeautifulSoup(driver.page_source, "lxml")
-    for element in soup.find_all("div", class_="elementList"):
+    booksContainer = soup.find("div", class_="leftContainer")
+    bookList = booksContainer.find_all("div", class_="elementList")
+    for element in bookList:
         book = element.find("a", "bookTitle")
         author = "Unknown"
         rating = element.find("div", "ratingStars")

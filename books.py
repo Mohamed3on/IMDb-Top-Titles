@@ -20,7 +20,7 @@ def categorized_books(genre='programming', minscore=200, maxconsecutivebypassed=
         url, driver, minscore=minscore, maxconsecutivebypassed=maxconsecutivebypassed, minRatio=minRatio)
     driver.close()
     savebooks(books, genre)
-    os.system('start books/' + genre + '.json')
+    os.system('code books/' + genre + '.json')
 
 
 def generalbooks():
@@ -34,5 +34,5 @@ def generalbooks():
     savebooks(combined, 'generalbooks')
 
 
-categorized_books('to-read', minscore=13000,
-                  minRatio=0.45, maxconsecutivebypassed=3)
+categorized_books('to-read', minscore=2000,
+                  minRatio=0.37, maxconsecutivebypassed=5)
