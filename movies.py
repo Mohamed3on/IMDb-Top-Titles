@@ -3,15 +3,16 @@ import os
 import commonfunctions
 import imdbfunctions
 import login
-MINSCORE = 60000
-MINVOTES = 120000
-MAXVOTES = 350000
-MIN_RELEASE_DATE = 1979
+MINSCORE = 50000
+MINVOTES = 100000
+MAXVOTES = 330000
+MIN_RELEASE_DATE = 1988
+MAX_RUNTIME = 202
 
 URL = 'http://www.imdb.com/search/title?count=250&num_votes=' + \
     str(MINVOTES) + ',' + str(MAXVOTES) + \
     '&sort=num_votes,desc&view=simple&my_ratings=exclude&user_rating=6.8,&release_date=' + \
-    MIN_RELEASE_DATE+',&runtime=,202'
+    str(MIN_RELEASE_DATE)+',&runtime=,'+str(MAX_RUNTIME)
 
 
 def getStuff(url, filename='sortedtitles'):

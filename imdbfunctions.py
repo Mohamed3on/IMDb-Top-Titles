@@ -8,7 +8,7 @@ def getIMDBSoupAfterLogin(url):
     driver = setup_driver()
     driver.get(url)
     driver.find_element_by_id('nblogin').click()
-    driver.find_elements_by_class_name('list-group-item')[3].click()
+    driver.find_element_by_link_text('Sign in with IMDb').click()
     mailinput = driver.find_element_by_name('email')
     passinput = driver.find_element_by_name('password')
     mailinput.send_keys(login.imdbEmail)
@@ -53,7 +53,7 @@ def getMovies(scores, url, minScore=40000, bypassed=0, minratio=0.4, maxbypassed
         return scores
     else:
         url = nextdiv["href"]
-        nexturl = 'http://www.imdb.com/search/title' + url
+        nexturl = 'http://www.imdb.com' + url
         print("next page")
         return getMovies(scores, nexturl, minScore, bypassed, minratio, maxbypassed)
 

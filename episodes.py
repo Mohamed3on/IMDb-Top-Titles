@@ -3,9 +3,16 @@ import operator
 import commonfunctions
 import imdbfunctions
 
-SHOW_ID = 'tt1856010'
+
+def saveAndOpenScores(scores, name):
+    file['EpisodesChronological'] = chronological
+    commonfunctions.savescoresUnicode(scores, 'shows/' + name)
+    open("shows/" + name + '.json')
+
+
+SHOW_ID = 'tt0804503'
 episodes, name = imdbfunctions.getEpisodes(
-    SHOW_ID, startingSeason=6, minRatio=0.91, max_not_selected=13)
+    SHOW_ID, startingSeason=1, minRatio=0.23, max_not_selected=13)
 scores = sorted(episodes.items(), key=operator.itemgetter(1), reverse=True)
 seasons = {}
 for episode in scores:
@@ -31,9 +38,3 @@ file['EpisodesSorted'] = scores
 chronological = sorted(episodes.items(), key=operator.itemgetter(0))
 if len(seasons.items()) > 0:
     saveAndOpenScores(file, name)
-
-
-def saveAndOpenScores(scores, name):
-    file['EpisodesChronological'] = chronological
-    commonfunctions.savescoresUnicode(scores, 'shows/' + name)
-    open("shows/" + name + '.json')
