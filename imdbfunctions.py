@@ -7,7 +7,7 @@ import time
 def getIMDBSoupAfterLogin(url):
     driver = setup_driver()
     driver.get(url)
-    driver.find_element_by_id('nblogin').click()
+    driver.find_element_by_id('imdb-signin-link').click()
     driver.find_element_by_link_text('Sign in with IMDb').click()
     mailinput = driver.find_element_by_name('email')
     passinput = driver.find_element_by_name('password')
@@ -15,7 +15,9 @@ def getIMDBSoupAfterLogin(url):
     passinput.send_keys(login.imdbPassword)
     driver.find_element_by_id('signInSubmit').click()
     time.sleep(2)
-    soup = getSoupFromHTML(driver.page_source)
+    content = driver.find_element_by_id(
+        'pagecontent').get_attribute('innerHTML')
+    soup = getSoupFromHTML(content)
     driver.close()
     return soup
 
@@ -46,8 +48,7 @@ def getMovies(scores, url, minScore=40000, bypassed=0, minratio=0.4, maxbypassed
             print(moviename + " already in scores")
             continue
     savescores(scores, 'scores')
-    desc = soup.find("div", class_="desc")
-    nextdiv = desc.find("a", class_="next-page")
+    nextdiv = soup.find("a", class_="next-page")
     if not nextdiv:
         print("end reached")
         return scores
