@@ -1,18 +1,19 @@
 import operator
-
+import os
 import commonfunctions
 import imdbfunctions
+
+SHOW_ID = 'tt0098904'
 
 
 def saveAndOpenScores(scores, name):
     file['EpisodesChronological'] = chronological
     commonfunctions.savescoresUnicode(scores, 'shows/' + name)
-    open("shows/" + name + '.json')
+    os.system("code shows/" + name + '.json')
 
 
-SHOW_ID = 'tt0804503'
 episodes, name = imdbfunctions.getEpisodes(
-    SHOW_ID, startingSeason=1, minRatio=0.23, max_not_selected=13)
+    SHOW_ID, startingSeason=1, minRatio=0.10, max_not_selected=8)
 scores = sorted(episodes.items(), key=operator.itemgetter(1), reverse=True)
 seasons = {}
 for episode in scores:
