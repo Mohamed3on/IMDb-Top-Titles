@@ -118,8 +118,14 @@ def getSeason(currentSeason, titleID, notselected, minRatio, episodes, max_not_s
             print("Not selected " + str(notselected) +
                   ": " + episode + ' ' + name)
             continue
-    if soup.find("a", {"id": "load_next_episodes"}):
-        return getSeason(currentSeason + 1, titleID, notselected, minRatio, episodes, max_not_selected)
+
+    next_season_link = soup.find("a", {"id": "load_next_episodes"})
+    if next_season_link:
+        next_season = currentSeason+1
+
+        if ("Unknown Season" in next_season_link.text):
+            next_season = -1
+        return getSeason(next_season, titleID, notselected, minRatio, episodes, max_not_selected)
     else:
         return episodes, title
 
