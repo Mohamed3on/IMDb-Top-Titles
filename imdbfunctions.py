@@ -37,7 +37,7 @@ def getMovies(scores, url, minScore=40000, bypassed=0, minratio=0.4, maxbypassed
         titleURL = 'http://www.imdb.com/title/' + titleID
         if titleURL not in scores:
             name, score, ratio = getTitleScore(titleID)
-            scores[titleURL] = score, name
+            scores[titleURL] = score, name, round(ratio, 2)
             if score > minScore and ratio > minratio:
                 bypassed = 0
                 print(name, ":", str(score))
