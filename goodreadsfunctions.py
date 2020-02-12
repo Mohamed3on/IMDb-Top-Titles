@@ -37,6 +37,7 @@ def getCategorizedBooks(baseurl, driver, bypassed=0, books={}, page=1, minscore=
     booksContainer = soup.find("div", class_="leftContainer")
     bookList = booksContainer.find_all("div", class_="elementList")
     for element in bookList:
+
         book = element.find("a", "bookTitle")
         author = "Unknown"
         rating = element.find("div", "ratingStars")
@@ -49,19 +50,24 @@ def getCategorizedBooks(baseurl, driver, bypassed=0, books={}, page=1, minscore=
             href = "https://www.goodreads.com" + book["href"]
         except:
             break
-        score, totalvotes = getBookScore(href, driver)
-        cutoff = max(totalvotes * minRatio, minscore)
-        if score > cutoff:
+        score, ratio = getBookScore(href, driver)
+        if score > minscore and ratio >= minRatio:
             count = count + 1
             print(str(count) + ': ' + title)
             print(score)
-            books[title] = score, href
-            bypassed = 0
+            books[title] = score, round(ratio, 2), href
+            # this is to return the first book you find after maxconsecutivebypassed is reached and the list is still empty
+            if bypassed >= maxconsecutivebypassed and len(books) == 1:
+                return books
+            else:
+                bypassed = 0
+
         else:
             bypassed += 1
             print("score of (" + title + ") is too low, now " +
                   str(bypassed) + " books bypassed")
-        if bypassed >= maxconsecutivebypassed:
+
+        if bypassed == maxconsecutivebypassed and len(books) > 0:
             return books
 
     getCategorizedBooks(baseurl, driver, bypassed,
@@ -91,5 +97,9 @@ def getBookScore(url, driver):
     scores = ClickButtonAndGetScores("rating_details", driver, 0)
     if scores == []:
         scores = ClickButtonAndGetScores("rating_details", driver, 0.5)
-    score = scores[0] - scores[-1]
-    return score, sum(scores)
+    try:
+        score = scores[0] - scores[-1]
+        ratio = score / sum(scores)
+    except:
+        score = 0
+    return score, ratio
