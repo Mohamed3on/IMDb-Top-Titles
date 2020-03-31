@@ -4,13 +4,13 @@ import commonfunctions
 import imdbfunctions
 import login
 
-MINSCORE = 45000
-MIN_RATIO = 0.29
+MINSCORE = 30000
+MIN_RATIO = 0.28 # at least as good as superbad
 
-MINVOTES = str(100000)
-MAXVOTES = str(360000)
+MINVOTES = str(80000)
+MAXVOTES = str(560000)
 MIN_RELEASE_DATE = str(1988)
-MAX_RUNTIME = str(202)
+MAX_RUNTIME = str(175) # at most as long as godfather
 MIN_RATING = str(7.4)
 
 URL = 'http://www.imdb.com/search/title?count=250&num_votes=' + \
