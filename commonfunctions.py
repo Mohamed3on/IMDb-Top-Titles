@@ -3,7 +3,7 @@ import operator
 import urllib.request
 from pathlib import Path
 from selenium import webdriver
-
+from webdriver_manager.chrome import ChromeDriverManager
 import bs4
 
 
@@ -67,5 +67,5 @@ def setup_driver():
     prefs = {"profile.managed_default_content_settings.images": 2}
     options.add_argument("--headless")
     options.add_experimental_option("prefs", prefs)
-    thedriver = webdriver.Chrome(chrome_options=options)
+    thedriver = webdriver.Chrome(ChromeDriverManager().install(),chrome_options=options)
     return thedriver

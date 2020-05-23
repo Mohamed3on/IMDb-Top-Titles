@@ -2,21 +2,8 @@ import bs4
 import time
 import login
 
-
-def getPopularBooks(url, driver):
-    books = {}
-    driver.get(url)
-    soup = bs4.BeautifulSoup(driver.page_source, "lxml")
-    seen = 1
-    for book in soup.find_all("a", class_="bookTitle"):
-        title = book.text.strip('\n')
-        href = "https://www.goodreads.com" + book["href"]
-        score = getBookScore(href, driver)[0]
-        print(str(seen) + ': ' + title)
-        print(score)
-        books[title] = score
-        seen += 1
-    return books
+import logging, sys
+logging.basicConfig(stream=sys.stderr, level=logging.INFO)
 
 
 def goodreads_login(driver):
@@ -51,10 +38,10 @@ def getCategorizedBooks(baseurl, driver, bypassed=0, books={}, page=1, minscore=
         except:
             break
         score, ratio = getBookScore(href, driver)
-        if score > minscore and ratio >= minRatio:
+        if score >= minscore and ratio >= minRatio:
             count = count + 1
-            print(str(count) + ': ' + title)
-            print(score)
+            logging.info(str(count) + ': ' + title)
+            logging.info(score)
             books[title] = score, round(ratio, 2), href
             # this is to return the first book you find after maxconsecutivebypassed is reached and the list is still empty
             if bypassed >= maxconsecutivebypassed and len(books) == 1:
@@ -64,7 +51,7 @@ def getCategorizedBooks(baseurl, driver, bypassed=0, books={}, page=1, minscore=
 
         else:
             bypassed += 1
-            print("score of (" + title + ") is too low, now " +
+            logging.info("score of (" + title + ") is too low, now " +
                   str(bypassed) + " books bypassed")
 
         if bypassed == maxconsecutivebypassed and len(books) > 0:
