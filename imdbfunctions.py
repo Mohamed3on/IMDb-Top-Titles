@@ -14,7 +14,8 @@ def getIMDBSoupAfterLogin(url):
     mailinput.send_keys(login.imdbEmail)
     passinput.send_keys(login.imdbPassword)
     driver.find_element_by_id('signInSubmit').click()
-    time.sleep(2)
+    time.sleep(1)
+    driver.get(url)
     content = driver.find_element_by_id(
         'pagecontent').get_attribute('innerHTML')
     soup = getSoupFromHTML(content)

@@ -4,14 +4,14 @@ import commonfunctions
 import imdbfunctions
 import login
 
-MINSCORE = 30000
-MIN_RATIO = 0.28 # at least as good as superbad
+MINSCORE = 8000
+MIN_RATIO = 0.29 # default is 0.29 (superbad)
 
-MINVOTES = str(80000)
-MAXVOTES = str(560000)
-MIN_RELEASE_DATE = str(1988)
-MAX_RUNTIME = str(175) # at most as long as godfather
-MIN_RATING = str(7.4)
+MINVOTES = str(100000)
+MAXVOTES = str(650000)
+MIN_RELEASE_DATE = str(1954)
+MAX_RUNTIME = str(207) # at most as long as seven samurai
+MIN_RATING = str(7.1)
 
 URL = 'http://www.imdb.com/search/title?count=250&num_votes=' + \
     MINVOTES + ',' + MAXVOTES + \
@@ -33,6 +33,7 @@ def getStuff(url, filename='sortedtitles'):
         SCORES.items(), key=operator.itemgetter(1), reverse=True)
     commonfunctions.savescores(SORTEDSCORES, filename)
     os.remove('scores.json')
+    os.system("code sortedtitles.json")
 
 
 getStuff(URL)
