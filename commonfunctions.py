@@ -3,8 +3,8 @@ import operator
 import urllib.request
 from pathlib import Path
 from selenium import webdriver
-from webdriver_manager.chrome import ChromeDriverManager
 import bs4
+
 
 
 def sortscores(scores):
@@ -65,7 +65,9 @@ def getSoupFromHTML(HTML):
 def setup_driver():
     options = webdriver.ChromeOptions()
     prefs = {"profile.managed_default_content_settings.images": 2}
-    options.add_argument("--headless")
+    # options.add_argument("--headless")
+    options.binary_location = "/Applications/Google Chrome Beta.app/Contents/MacOS/Google Chrome Beta"
     options.add_experimental_option("prefs", prefs)
-    thedriver = webdriver.Chrome(ChromeDriverManager().install(),chrome_options=options)
+    thedriver = webdriver.Chrome("./chromedriver",chrome_options=options)
+
     return thedriver

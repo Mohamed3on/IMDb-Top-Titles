@@ -5,13 +5,13 @@ import imdbfunctions
 import login
 
 MINSCORE = 8000
-MIN_RATIO = 0.29 # default is 0.29 (superbad)
+MIN_RATIO = 0.35 # default is 0.29 (superbad)
 
-MINVOTES = str(100000)
+MINVOTES = str(50000)
 MAXVOTES = str(650000)
 MIN_RELEASE_DATE = str(1954)
 MAX_RUNTIME = str(207) # at most as long as seven samurai
-MIN_RATING = str(7.1)
+MIN_RATING = str(7.6)
 
 URL = 'http://www.imdb.com/search/title?count=250&num_votes=' + \
     MINVOTES + ',' + MAXVOTES + \
@@ -24,7 +24,7 @@ def getStuff(url, filename='sortedtitles'):
     # for testing purposes
     SCORES = commonfunctions.loadfile('scores')
     SCORES = imdbfunctions.getMovies(
-        SCORES, url, MINSCORE, maxbypassed=20, minratio=MIN_RATIO)
+        SCORES, url, MINSCORE, maxbypassed=40, minratio=MIN_RATIO)
     commonfunctions.savescores(SCORES, 'scores')
     SCORES = commonfunctions.loadfile('scores')
     SCORES = {k: v for (k, v) in SCORES.items()

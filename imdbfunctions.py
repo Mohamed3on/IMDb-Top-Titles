@@ -8,6 +8,8 @@ def getIMDBSoupAfterLogin(url):
     driver = setup_driver()
     driver.get(url)
     driver.find_element_by_link_text('Sign In').click()
+    time.sleep(0.5)
+
     driver.find_element_by_link_text('Sign in with IMDb').click()
     mailinput = driver.find_element_by_name('email')
     passinput = driver.find_element_by_name('password')
