@@ -2,16 +2,15 @@ import operator
 import os
 import commonfunctions
 import imdbfunctions
-import login
 
 MINSCORE = 8000
-MIN_RATIO = 0.35 # default is 0.29 (superbad)
+MIN_RATIO = 0.14  # default is 0.29 (superbad)
 
-MINVOTES = str(50000)
-MAXVOTES = str(650000)
-MIN_RELEASE_DATE = str(1954)
-MAX_RUNTIME = str(207) # at most as long as seven samurai
-MIN_RATING = str(7.6)
+MINVOTES = str(80000)
+MAXVOTES = str(800000)
+MIN_RELEASE_DATE = str(1964)
+MAX_RUNTIME = str(200)  # at most as long as seven samurai
+MIN_RATING = str(7.1)
 
 URL = 'http://www.imdb.com/search/title?count=250&num_votes=' + \
     MINVOTES + ',' + MAXVOTES + \
@@ -19,12 +18,12 @@ URL = 'http://www.imdb.com/search/title?count=250&num_votes=' + \
     MIN_RELEASE_DATE+',&runtime=,'+MAX_RUNTIME
 
 
-def getStuff(url, filename='sortedtitles'):
+def get_stuff(url, filename='sortedtitles'):
     # to resume execution if the script fails while running
     # for testing purposes
     SCORES = commonfunctions.loadfile('scores')
-    SCORES = imdbfunctions.getMovies(
-        SCORES, url, MINSCORE, maxbypassed=40, minratio=MIN_RATIO)
+    SCORES = imdbfunctions.get_movies(
+        SCORES, url, MINSCORE, maxbypassed=40, min_ratio=MIN_RATIO)
     commonfunctions.savescores(SCORES, 'scores')
     SCORES = commonfunctions.loadfile('scores')
     SCORES = {k: v for (k, v) in SCORES.items()
@@ -33,7 +32,7 @@ def getStuff(url, filename='sortedtitles'):
         SCORES.items(), key=operator.itemgetter(1), reverse=True)
     commonfunctions.savescores(SORTEDSCORES, filename)
     os.remove('scores.json')
-    os.system("code sortedtitles.json")
+    os.system("code "+filename+".json")
 
 
-getStuff(URL)
+get_stuff(URL, 'movies')

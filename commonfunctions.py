@@ -4,7 +4,7 @@ import urllib.request
 from pathlib import Path
 from selenium import webdriver
 import bs4
-
+from webdriver_manager.chrome import ChromeDriverManager
 
 
 def sortscores(scores):
@@ -65,9 +65,11 @@ def getSoupFromHTML(HTML):
 def setup_driver():
     options = webdriver.ChromeOptions()
     prefs = {"profile.managed_default_content_settings.images": 2}
-    # options.add_argument("--headless")
+    options.add_argument("--headless")
+    options.add_argument('--lang=en')
     options.binary_location = "/Applications/Google Chrome Beta.app/Contents/MacOS/Google Chrome Beta"
     options.add_experimental_option("prefs", prefs)
-    thedriver = webdriver.Chrome("./chromedriver",chrome_options=options)
+    thedriver = webdriver.Chrome(
+        ChromeDriverManager().install(), chrome_options=options)
 
     return thedriver

@@ -1,10 +1,15 @@
-# if found item with class next-page go to that item's href and append the scores, else return the scores
+"""
+functions to get IMDB scores of titles
+"""
+
+# if found item with class next-page go to that item's href and append the scores,
+# else return the scores
+import time
 from commonfunctions import savescores, getSoupFromHTML, getSoup, setup_driver
 import login
-import time
 
 
-def getIMDBSoupAfterLogin(url):
+def get_imdb_soup_after_login(url):
     driver = setup_driver()
     driver.get(url)
     driver.find_element_by_link_text('Sign In').click()
@@ -25,8 +30,8 @@ def getIMDBSoupAfterLogin(url):
     return soup
 
 
-def getMovies(scores, url, minScore=40000, bypassed=0, minratio=0.4, maxbypassed=10):
-    soup = getIMDBSoupAfterLogin(url)
+def get_movies(scores, url, min_score=40000, bypassed=0, min_ratio=0.4, maxbypassed=10):
+    soup = get_imdb_soup_after_login(url)
     moviename = ''
     for movie in soup.find_all("span", class_="lister-item-header"):
         if bypassed > maxbypassed:
@@ -36,12 +41,12 @@ def getMovies(scores, url, minScore=40000, bypassed=0, minratio=0.4, maxbypassed
         title = movie.find("a")
         url = title["href"]
         moviename = title.text
-        titleID = url.split('/')[2]
-        titleURL = 'http://www.imdb.com/title/' + titleID
-        if titleURL not in scores:
-            name, score, ratio = getTitleScore(titleID)
-            scores[titleURL] = score, name, round(ratio, 2)
-            if score > minScore and ratio > minratio:
+        title_id = url.split('/')[2]
+        title_url = 'http://www.imdb.com/title/' + title_id
+        if title_url not in scores:
+            name, score, ratio = get_title_score(title_id)
+            scores[title_url] = score, name, round(ratio, 2)
+            if score > min_score and ratio > min_ratio:
                 bypassed = 0
                 print(name, ":", str(score))
             else:
@@ -59,11 +64,11 @@ def getMovies(scores, url, minScore=40000, bypassed=0, minratio=0.4, maxbypassed
         url = nextdiv["href"]
         nexturl = 'http://www.imdb.com' + url
         print("next page")
-        return getMovies(scores, nexturl, minScore, bypassed, minratio, maxbypassed)
+        return get_movies(scores, nexturl, min_score, bypassed, min_ratio, maxbypassed)
 
 
-def getTitleScore(titleID):
-    url = 'http://www.imdb.com/title/' + titleID + '/ratings'
+def get_title_score(title_id):
+    url = 'http://www.imdb.com/title/' + title_id + '/ratings'
     soup = getSoup(url)
     ratings = []
     i = soup.find("h3")
@@ -75,46 +80,52 @@ def getTitleScore(titleID):
             ratings.append(int(value))
         else:
             continue
-    score = ratings[0] + ratings[1] - ratings[-1] - ratings[-2]
-    ratio = score / sum(ratings)
+    abs_score = ratings[0] + ratings[1] - ratings[-1] - ratings[-2]
+    ratio = abs_score / sum(ratings)
+
+    score = round(abs_score*ratio)
+
     if name[0] == "\"" and name[-1] == "\"":
         name = name[1:-1]
     return name.strip(), score, ratio
 
 
-def getEpisodes(titleID, startingSeason=1, minRatio=0.4, max_not_selected=10):
+def get_episodes(title_id, starting_season=1, min_ratio=0.4, max_not_selected=10):
 
     episodes = {}
     notselected = 0
-    episodes, title = getSeason(
-        startingSeason, titleID, notselected, minRatio, episodes, max_not_selected)
+    episodes, title = get_season(
+        starting_season, title_id, notselected, min_ratio, episodes, max_not_selected)
     return episodes, title
 
 
-def getSeason(currentSeason, titleID, notselected, minRatio, episodes, max_not_selected=10):
-    url = 'http://www.imdb.com/title/' + titleID + \
-        '/episodes?season=' + str(currentSeason)
+def get_season(current_season, title_id, notselected, min_ratio, episodes, max_not_selected=10):
+    url = 'http://www.imdb.com/title/' + title_id + \
+        '/episodes?season=' + str(current_season)
     soup = getSoup(url)
     title = soup.find("a", class_="subnav_heading").text
-    episodeNumber = 0
+    episode_number = 0
     for ep in soup.find_all("div", class_="list_item"):
         if notselected >= max_not_selected:
             return episodes, title
-        episodeNumber += 1
-        episodeTitle = ep.find("a", {"itemprop": "name"})
-        href = episodeTitle.attrs["href"]
-        episodeID = href.split('/')[2]
-        episode = str(currentSeason) + '.' + str(episodeNumber)
-        result = getEpscore(episodeID)
+        episode_number += 1
+        episode_title = ep.find("a", {"itemprop": "name"})
+        href = episode_title.attrs["href"]
+        episode_id = href.split('/')[2]
+        episode = str(current_season) + '.' + str(episode_number)
+        result = get_ep_score(episode_id)
         if result:
-            name, score, ratingsSum = result
+            name, score, ratings_sum = result
         else:
-            return episodes, title
-        episodeRatio = score / ratingsSum
-        if episodeRatio > minRatio:
+            continue
+        episode_ratio = score / ratings_sum
+
+        if episode_ratio > min_ratio:
             notselected = 0
-            print(episode, name, score)
-            episodes[str(episode)] = score, name, round(episodeRatio, 2)
+            calculated_score = round(score*episode_ratio)
+            print(episode, name, calculated_score)
+            episodes[str(episode)] = calculated_score, name, round(
+                episode_ratio, 2)
 
         else:
             notselected += 1
@@ -124,17 +135,17 @@ def getSeason(currentSeason, titleID, notselected, minRatio, episodes, max_not_s
 
     next_season_link = soup.find("a", {"id": "load_next_episodes"})
     if next_season_link:
-        next_season = currentSeason+1
+        next_season = current_season+1
 
-        if ("Unknown Season" in next_season_link.text):
+        if "Unknown Season" in next_season_link.text:
             next_season = -1
-        return getSeason(next_season, titleID, notselected, minRatio, episodes, max_not_selected)
-    else:
-        return episodes, title
+        return get_season(next_season, title_id, notselected, min_ratio, episodes, max_not_selected)
+
+    return episodes, title
 
 
-def getEpscore(titleID):
-    url = 'http://www.imdb.com/title/' + titleID + '/ratings'
+def get_ep_score(title_id):
+    url = 'http://www.imdb.com/title/' + title_id + '/ratings'
     soup = getSoup(url)
     ratings = []
     i = soup.find("h3")

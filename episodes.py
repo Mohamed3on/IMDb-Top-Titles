@@ -1,19 +1,25 @@
+import json
 import operator
 import os
 import commonfunctions
 import imdbfunctions
 
-SHOW_ID = 'tt2861424'
+SHOW_ID = 'tt0068098'
+STARTING_SEASON = 1
+
+MIN_RATIO = 0.37
+MAX_NOT_SELECTED = 10
 
 
-def saveAndOpenScores(scores, name):
+def save_and_open_scores(scores_to_save, file_name):
     file['EpisodesChronological'] = chronological
-    commonfunctions.savescoresUnicode(scores, 'shows/' + name)
-    os.system("code shows/'" + name + "'.json")
+    commonfunctions.savescoresUnicode(scores_to_save, 'shows/' + name)
+    os.system("code shows/" + json.dumps(file_name) + ".json")
 
 
-episodes, name = imdbfunctions.getEpisodes(
-    SHOW_ID, startingSeason=4, minRatio=0.42, max_not_selected=10)
+episodes, name = imdbfunctions.get_episodes(
+    SHOW_ID, starting_season=STARTING_SEASON, min_ratio=MIN_RATIO, max_not_selected=MAX_NOT_SELECTED)
+
 scores = sorted(episodes.items(), key=operator.itemgetter(1), reverse=True)
 seasons = {}
 for episode in scores:
@@ -38,4 +44,4 @@ file['Seasons'] = sorted(
 file['EpisodesSorted'] = scores
 chronological = sorted(episodes.items(), key=operator.itemgetter(0))
 if len(seasons.items()) > 0:
-    saveAndOpenScores(file, name)
+    save_and_open_scores(file, name)
