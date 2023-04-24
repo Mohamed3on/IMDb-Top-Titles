@@ -7,6 +7,7 @@ functions to get IMDB scores of titles
 import time
 from commonfunctions import savescores, getSoupFromHTML, getSoup, setup_driver
 import login
+import json
 
 
 def get_imdb_soup_after_login(url):
@@ -62,7 +63,7 @@ def get_movies(scores, url, min_score=40000, bypassed=0, min_ratio=0.4, maxbypas
         return scores
     else:
         url = nextdiv["href"]
-        nexturl = 'http://www.imdb.com' + url
+        nexturl = 'https://www.imdb.com' + url
         print("next page")
         return get_movies(scores, nexturl, min_score, bypassed, min_ratio, maxbypassed)
 
@@ -117,7 +118,7 @@ def get_season(current_season, title_id, notselected, min_ratio, episodes, max_n
         if result:
             name, score, ratings_sum = result
         else:
-            continue
+            return episodes, title
         episode_ratio = score / ratings_sum
 
         if episode_ratio > min_ratio:
@@ -145,18 +146,38 @@ def get_season(current_season, title_id, notselected, min_ratio, episodes, max_n
 
 
 def get_ep_score(title_id):
-    url = 'http://www.imdb.com/title/' + title_id + '/ratings'
-    soup = getSoup(url)
-    ratings = []
-    i = soup.find("h3")
-    name = i.find("a").text
+    url = 'https://www.imdb.com/title/' + title_id + '/ratings'
 
-    for bucket in soup.find_all('div', class_="leftAligned"):
-        value = bucket.text.replace(',', '')
-        if value.isdigit():
-            ratings.append(int(value))
-        else:
-            continue
+    soup = getSoup(url)
+
+
+    try:
+        ratings = []
+        name = soup.find("h3").find("a").text
+
+        for bucket in soup.find_all('div', class_="leftAligned"):
+            value = bucket.text.replace(',', '')
+            if value.isdigit():
+                ratings.append(int(value))
+            else:
+                continue
+
+        if len(ratings) < 1:
+            raise ValueError("No ratings found")
+    except(AttributeError, ValueError):
+        # Get the script content with the JSON data
+        script_element = soup.find('script', {'id': '__NEXT_DATA__'})
+        script_content = script_element.string
+
+        # Parse the JSON data
+        data = json.loads(script_content)
+
+        # Extract the ratings from the JSON data
+        histogram_values = data['props']['pageProps']['contentData']['histogramData']['histogramValues']
+        ratings = [value['voteCount'] for value in histogram_values]
+
+        name = data['props']['pageProps']['contentData']['entityMetadata']['titleText']['text']
+
     if len(ratings) < 1:
         return None
     else:
