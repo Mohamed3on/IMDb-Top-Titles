@@ -7,7 +7,7 @@ functions to get IMDB scores of titles
 import time
 from commonfunctions import savescores, getSoupFromHTML, getSoup, setup_driver
 
-import login
+# import login
 import json
 
 
@@ -112,7 +112,7 @@ def get_season(
     soup = getSoup(url)
     title = soup.find("h2").text
     episode_number = 0
-    for ep in soup.find_all("a", class_="bglHll"):
+    for ep in soup.find_all("a", class_="ipc-title-link-wrapper"):
         if notselected >= max_not_selected:
             return episodes, title
         episode_number += 1
@@ -137,7 +137,7 @@ def get_season(
             print("Not selected " + str(notselected) + ": " + episode + " " + name)
             continue
 
-    next_season_link = soup.find("a", {"id": "load_next_episodes"})
+    next_season_link = soup.find("button", {"id": "next-season-btn"})
     if next_season_link:
         next_season = current_season + 1
 
