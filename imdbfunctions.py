@@ -4,44 +4,95 @@ functions to get IMDB scores of titles
 
 # if found item with class next-page go to that item's href and append the scores,
 # else return the scores
-import time
-from commonfunctions import savescores, getSoupFromHTML, getSoup, setup_driver
-
-# import login
 import json
+import time
+import concurrent.futures
+from functools import partial
+
+from selenium.webdriver.common.by import By
+
+import login
+from commonfunctions import getSoup, getSoupFromHTML, savescores, setup_driver
+
+
+def imdb_login(url):
+    driver = setup_driver()
+    driver.get("https://www.imdb.com/registration/signin")
+
+    # Update the method to find elements
+    driver.find_element(By.LINK_TEXT, "Sign In").click()
+    time.sleep(0.5)
+
+    driver.find_element(By.LINK_TEXT, "Sign in with IMDb").click()
+
+    # Finding elements by name
+    mailinput = driver.find_element(By.NAME, "email")
+    passinput = driver.find_element(By.NAME, "password")
+
+    # Input credentials and submit
+    mailinput.send_keys(login.imdbEmail)
+    passinput.send_keys(login.imdbPassword)
+    driver.find_element(By.ID, "signInSubmit").click()
+
+    time.sleep(1)
+
+    # Reload the page and retrieve content
+    driver.get(url)
+
+    content = driver.find_element(
+        By.CSS_SELECTOR, "ul.ipc-metadata-list"
+    ).get_attribute("innerHTML")
+    soup = getSoupFromHTML(content)
+
+    # Close the driver
+    driver.close()
+    return soup
 
 
 def get_imdb_soup_after_login(url):
     driver = setup_driver()
     driver.get(url)
-    driver.find_element_by_link_text("Sign In").click()
+
+    # Update the method to find elements
+    driver.find_element(By.LINK_TEXT, "Sign In").click()
     time.sleep(0.5)
 
-    driver.find_element_by_link_text("Sign in with IMDb").click()
-    mailinput = driver.find_element_by_name("email")
-    passinput = driver.find_element_by_name("password")
+    driver.find_element(By.LINK_TEXT, "Sign in with IMDb").click()
+
+    # Finding elements by name
+    mailinput = driver.find_element(By.NAME, "email")
+    passinput = driver.find_element(By.NAME, "password")
+
+    # Input credentials and submit
     mailinput.send_keys(login.imdbEmail)
     passinput.send_keys(login.imdbPassword)
-    driver.find_element_by_id("signInSubmit").click()
-    time.sleep(1)
+    time.sleep(3)
+    driver.find_element(By.ID, "signInSubmit").click()
+
+    # Reload the page and retrieve content
     driver.get(url)
-    content = driver.find_element_by_id("pagecontent").get_attribute("innerHTML")
+    content = driver.find_element(
+        By.CSS_SELECTOR, "ul.ipc-metadata-list"
+    ).get_attribute("innerHTML")
     soup = getSoupFromHTML(content)
+
+    # Close the driver
     driver.close()
     return soup
 
 
 def get_movies(scores, url, min_score=40000, bypassed=0, min_ratio=0.4, maxbypassed=10):
-    soup = get_imdb_soup_after_login(url)
+    soup = imdb_login(url)
+    # soup = getSoup(url)
     moviename = ""
-    for movie in soup.find_all("span", class_="lister-item-header"):
+    for movie in soup.find_all("a", class_="ipc-title-link-wrapper"):
         if bypassed > maxbypassed:
             print("last title: " + moviename)
             savescores(scores, "scores")
             return scores
-        title = movie.find("a")
-        url = title["href"]
-        moviename = title.text
+
+        url = movie["href"]
+        moviename = movie.text
         title_id = url.split("/")[2]
         title_url = "http://www.imdb.com/title/" + title_id
         if title_url not in scores:
@@ -72,19 +123,36 @@ def get_title_score(title_id):
     url = "http://www.imdb.com/title/" + title_id + "/ratings"
     soup = getSoup(url)
     ratings = []
-    i = soup.find("h3")
-    name = i.find("a").text
+    name = soup.find("h2").text
 
-    for bucket in soup.find_all("div", class_="leftAligned"):
-        value = bucket.text.replace(",", "")
-        if value.isdigit():
-            ratings.append(int(value))
-        else:
-            continue
+    next_data_script = soup.find("script", id="__NEXT_DATA__")
+    if next_data_script:
+        next_data_json = next_data_script.string
+        next_data = json.loads(next_data_json)
+
+        # Extract histogram data
+        histogram_data = (
+            next_data.get("props", {})
+            .get("pageProps", {})
+            .get("contentData", {})
+            .get("histogramData", {})
+        )
+
+        # Process histogram values
+        rating_arr = histogram_data.get("histogramValues", [])
+        sorted_arr = sorted(rating_arr, key=lambda x: x.get("rating", 0), reverse=True)
+
+        # Extract vote counts
+        ratings = [rating.get("voteCount", 0) for rating in sorted_arr]
+
+    else:
+        ratings = []
+        print('No script element found for title "' + title_id + '"')
+
     abs_score = ratings[0] + ratings[1] - ratings[-1] - ratings[-2]
     ratio = abs_score / sum(ratings)
-
     score = round(abs_score * ratio)
+    print(name, score, ratio)
 
     if name[0] == '"' and name[-1] == '"':
         name = name[1:-1]
@@ -111,36 +179,36 @@ def get_season(
     )
     soup = getSoup(url)
     title = soup.find("h2").text
-    episode_number = 0
-    for ep in soup.find_all("a", class_="ipc-title-link-wrapper"):
-        if notselected >= max_not_selected:
-            return episodes, title
-        episode_number += 1
-        href = ep.attrs["href"]
-        episode_id = href.split("/")[2]
-        episode = str(current_season) + "." + str(episode_number)
-        result = get_ep_score(episode_id)
+
+    episode_elements = soup.find_all("h4", {"data-testid": "slate-list-card-title"})
+
+    # Create a partial function with fixed arguments
+    process_episode_partial = partial(
+        process_episode, current_season=current_season, min_ratio=min_ratio
+    )
+
+    # Use ThreadPoolExecutor to parallelize episode processing
+    with concurrent.futures.ThreadPoolExecutor() as executor:
+        results = list(
+            executor.map(process_episode_partial, enumerate(episode_elements, 1))
+        )
+
+    # Process results
+    for result in results:
         if result:
-            name, score, ratings_sum = result
-        else:
-            return episodes, title
-        episode_ratio = score / ratings_sum
-
-        if episode_ratio > min_ratio:
-            notselected = 0
-            calculated_score = round(score * episode_ratio)
-            print(episode, name, calculated_score)
+            episode, calculated_score, name, episode_ratio = result
             episodes[str(episode)] = calculated_score, name, round(episode_ratio, 2)
-
+            print(episode, name, calculated_score)
+            notselected = 0
         else:
             notselected += 1
-            print("Not selected " + str(notselected) + ": " + episode + " " + name)
-            continue
+            if notselected >= max_not_selected:
+                return episodes, title
 
+    # Check for next season
     next_season_link = soup.find("button", {"id": "next-season-btn"})
     if next_season_link:
         next_season = current_season + 1
-
         if "Unknown Season" in next_season_link.text:
             next_season = -1
         return get_season(
@@ -148,6 +216,27 @@ def get_season(
         )
 
     return episodes, title
+
+
+def process_episode(enum_ep, current_season, min_ratio):
+    episode_number, ep = enum_ep
+    href = ep.find("a")["href"]
+    episode_id = href.split("/")[2]
+    episode = f"{current_season}.{episode_number}"
+
+    result = get_ep_score(episode_id)
+    if not result:
+        return None
+
+    name, score, ratings_sum = result
+    episode_ratio = score / ratings_sum
+
+    if episode_ratio > min_ratio:
+        calculated_score = round(score * episode_ratio)
+        return episode, calculated_score, name, episode_ratio
+
+    print("bypassed", episode, name, score, episode_ratio)
+    return None
 
 
 def get_ep_score(title_id):
