@@ -8,6 +8,7 @@ import json
 import time
 import concurrent.futures
 from functools import partial
+from concurrent.futures import ThreadPoolExecutor
 
 from selenium.webdriver.common.by import By
 
@@ -83,20 +84,24 @@ def get_imdb_soup_after_login(url):
 
 def get_movies(scores, url, min_score=40000, bypassed=0, min_ratio=0.4, maxbypassed=10):
     soup = imdb_login(url)
-    # soup = getSoup(url)
-    moviename = ""
-    for movie in soup.find_all("a", class_="ipc-title-link-wrapper"):
-        if bypassed > maxbypassed:
-            print("last title: " + moviename)
-            savescores(scores, "scores")
-            return scores
+    movies = soup.find_all("a", class_="ipc-title-link-wrapper")
 
-        url = movie["href"]
-        moviename = movie.text
-        title_id = url.split("/")[2]
-        title_url = "http://www.imdb.com/title/" + title_id
-        if title_url not in scores:
-            name, score, ratio = get_title_score(title_id)
+    with concurrent.futures.ThreadPoolExecutor() as executor:
+        movie_data = list(
+            executor.map(
+                partial(
+                    process_movie,
+                    scores=scores,
+                    min_score=min_score,
+                    min_ratio=min_ratio,
+                ),
+                movies,
+            )
+        )
+
+    for data in movie_data:
+        if data:
+            title_url, score, name, ratio = data
             scores[title_url] = score, name, round(ratio, 2)
             if score > min_score and ratio > min_ratio:
                 bypassed = 0
@@ -104,9 +109,12 @@ def get_movies(scores, url, min_score=40000, bypassed=0, min_ratio=0.4, maxbypas
             else:
                 bypassed += 1
                 print("bypassed count:", str(bypassed))
-        else:
-            print(moviename + " already in scores")
-            continue
+
+        if bypassed > maxbypassed:
+            print("last title: " + name)
+            savescores(scores, "scores")
+            return scores
+
     savescores(scores, "scores")
     nextdiv = soup.find("a", class_="next-page")
     if not nextdiv:
@@ -117,6 +125,19 @@ def get_movies(scores, url, min_score=40000, bypassed=0, min_ratio=0.4, maxbypas
         nexturl = "https://www.imdb.com" + url
         print("next page")
         return get_movies(scores, nexturl, min_score, bypassed, min_ratio, maxbypassed)
+
+
+def process_movie(movie, scores, min_score, min_ratio):
+    url = movie["href"]
+    moviename = movie.text
+    title_id = url.split("/")[2]
+    title_url = "http://www.imdb.com/title/" + title_id
+    if title_url not in scores:
+        name, score, ratio = get_title_score(title_id)
+        return title_url, score, name, ratio
+    else:
+        print(moviename + " already in scores")
+        return None
 
 
 def get_title_score(title_id):
@@ -159,84 +180,44 @@ def get_title_score(title_id):
     return name.strip(), score, ratio
 
 
-def get_episodes(title_id, starting_season=1, min_ratio=0.4, max_not_selected=10):
-    episodes = {}
-    notselected = 0
-    episodes, title = get_season(
-        starting_season, title_id, notselected, min_ratio, episodes, max_not_selected
-    )
-    return episodes, title
-
-
-def get_season(
-    current_season, title_id, notselected, min_ratio, episodes, max_not_selected=10
-):
-    url = (
-        "http://www.imdb.com/title/"
-        + title_id
-        + "/episodes?season="
-        + str(current_season)
-    )
+def get_episodes(title_id, min_ratio=0.4):
+    url = f"https://www.imdb.com/search/title/?series={title_id}&sort=release_date,asc&count=250"
     soup = getSoup(url)
-    title = soup.find("h2").text
 
-    episode_elements = soup.find_all("h4", {"data-testid": "slate-list-card-title"})
+    # Get the show name
+    show_name_element = soup.select_one("h3.ipc-title__text")
+    show_name = show_name_element.text.strip() if show_name_element else "Unknown Show"
 
-    # Create a partial function with fixed arguments
-    process_episode_partial = partial(
-        process_episode, current_season=current_season, min_ratio=min_ratio
-    )
+    episode_links = soup.select(".ep-title > a")
 
-    # Use ThreadPoolExecutor to parallelize episode processing
-    with concurrent.futures.ThreadPoolExecutor() as executor:
-        results = list(
-            executor.map(process_episode_partial, enumerate(episode_elements, 1))
-        )
+    with ThreadPoolExecutor() as executor:
+        episodes = list(executor.map(process_episode, enumerate(episode_links, 1)))
 
-    # Process results
-    for result in results:
-        if result:
-            episode, calculated_score, name, episode_ratio = result
-            episodes[str(episode)] = calculated_score, name, round(episode_ratio, 2)
-            print(episode, name, calculated_score)
-            notselected = 0
-        else:
-            notselected += 1
-            if notselected >= max_not_selected:
-                return episodes, title
+    # Filter episodes based on min_ratio
+    filtered_episodes = [ep for ep in episodes if ep and ep["ratio"] >= min_ratio]
 
-    # Check for next season
-    next_season_link = soup.find("button", {"id": "next-season-btn"})
-    if next_season_link:
-        next_season = current_season + 1
-        if "Unknown Season" in next_season_link.text:
-            next_season = -1
-        return get_season(
-            next_season, title_id, notselected, min_ratio, episodes, max_not_selected
-        )
-
-    return episodes, title
+    return {"show_name": show_name, "episodes": filtered_episodes}
 
 
-def process_episode(enum_ep, current_season, min_ratio):
-    episode_number, ep = enum_ep
-    href = ep.find("a")["href"]
-    episode_id = href.split("/")[2]
-    episode = f"{current_season}.{episode_number}"
+def process_episode(indexed_ep_link):
+    index, ep_link = indexed_ep_link
+    episode_id = ep_link["href"].split("/")[2]
+    name = ep_link.text.strip()
 
     result = get_ep_score(episode_id)
     if not result:
         return None
 
-    name, score, ratings_sum = result
+    _, score, ratings_sum = result
     episode_ratio = score / ratings_sum
+    calculated_score = round(score * episode_ratio)
 
-    if episode_ratio > min_ratio:
-        calculated_score = round(score * episode_ratio)
-        return episode, calculated_score, name, episode_ratio
-
-    print("bypassed", episode, name, score, episode_ratio)
-    return None
+    return {
+        "number": index,
+        "name": name,
+        "score": calculated_score,
+        "ratio": round(episode_ratio, 2),
+    }
 
 
 def get_ep_score(title_id):
