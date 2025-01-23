@@ -203,6 +203,7 @@ def process_episode(indexed_ep_link):
     index, ep_link = indexed_ep_link
     episode_id = ep_link["href"].split("/")[2]
     name = ep_link.text.strip()
+    episode_link = f"https://www.imdb.com{ep_link['href']}"
 
     result = get_ep_score(episode_id)
     if not result:
@@ -217,6 +218,7 @@ def process_episode(indexed_ep_link):
         "name": name,
         "score": calculated_score,
         "ratio": round(episode_ratio, 2),
+        "link": episode_link,
     }
 
 

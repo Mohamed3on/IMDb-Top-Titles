@@ -2,47 +2,86 @@ import json
 import os
 import sys
 import re
-import subprocess
+
+import urllib.parse
 
 import imdbfunctions
+import commonfunctions
 
-SHOW_ID = sys.argv[1]
-MIN_RATIO = 0.65
+MIN_RATIO = 0.51
+
+
+def search_show(query):
+    """Search for a TV show on IMDb and return its ID."""
+    encoded_query = urllib.parse.quote(query)
+    search_url = (
+        f"https://www.imdb.com/search/title/?title={encoded_query}&title_type=tv_series"
+    )
+
+    soup = commonfunctions.getSoup(search_url)
+    first_result = soup.select_one(".ipc-title-link-wrapper")
+
+    if not first_result:
+        return None
+
+    show_id = first_result["href"].split("/")[2]
+    show_name = first_result.text.strip()
+    return show_id, show_name
 
 
 def save_results(results, show_name):
-    # Create the 'shows' directory if it doesn't exist
-    os.makedirs("shows", exist_ok=True)
+    # Get the directory where this script is located
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+
+    # Create the 'shows' directory in the script directory
+    shows_dir = os.path.join(script_dir, "shows")
+    os.makedirs(shows_dir, exist_ok=True)
 
     # Create the full file path, keeping spaces in the file name
-    file_path = os.path.join("shows", f"{show_name}.json")
-
-    # Get the absolute path
-    abs_file_path = os.path.abspath(file_path)
+    file_path = os.path.join(shows_dir, f"{show_name}.json")
 
     # Save the results
-    with open(abs_file_path, "w", encoding="utf8") as fp:
+    with open(file_path, "w", encoding="utf8") as fp:
         json.dump(results, fp, ensure_ascii=False, indent=2)
 
-    # Open the file using the appropriate command based on the operating system
-    if sys.platform.startswith("darwin"):  # macOS
-        subprocess.run(["open", abs_file_path])
-    elif sys.platform.startswith("win"):  # Windows
-        os.startfile(abs_file_path)
-    else:  # Linux and other Unix-like systems
-        subprocess.run(["xdg-open", abs_file_path])
-
-    print(f"Results saved to {abs_file_path} and file opened.")
+    os.open(file_path, os.O_RDONLY)
 
 
 def main():
+    if len(sys.argv) < 2:
+        print("Usage: python episodes.py 'Show Name' [min_ratio]")
+        sys.exit(1)
+
+    show_name = sys.argv[1]
+    args = sys.argv[2:]
+
+    # Parse arguments
+    min_ratio = MIN_RATIO
+
+    for arg in args:
+        if arg.replace(".", "").isdigit():  # Check if it's a number
+            min_ratio = float(arg)
+
+    # Search for the show
+    search_result = search_show(show_name)
+    if not search_result:
+        print(f"No TV show found with name: {show_name}")
+        return
+
+    show_id, found_show_name = search_result
+    print(f"Found show: {found_show_name} (ID: {show_id})")
+
     result = imdbfunctions.get_episodes(
-        SHOW_ID,
-        min_ratio=MIN_RATIO,
+        show_id,
+        min_ratio=min_ratio,
     )
 
-    if not result or not result["episodes"]:
-        print("No episodes found. Check your SHOW_ID and other parameters.")
+    if not result:
+        print("No episodes found. Check your show name and other parameters.")
+        return
+
+    if not result["episodes"]:
+        print("No episodes passed the minimum score threshold.")
         return
 
     # Remove the number part from the show name
