@@ -12,6 +12,9 @@ IMDbetter/imdb/__pycache__/
 *.pyc
 *.txt
 login\.py
+node_modules/
+.DS_Store
+bun.lock
 
 buzzsumo\.py
 

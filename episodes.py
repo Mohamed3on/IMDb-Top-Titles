@@ -2,21 +2,20 @@ import json
 import os
 import sys
 import re
+from collections import defaultdict
 
 import urllib.parse
 
 import imdbfunctions
 import commonfunctions
 
-MIN_RATIO = 0.51
+MIN_RATIO = 0.68
 
 
 def search_show(query):
     """Search for a TV show on IMDb and return its ID."""
     encoded_query = urllib.parse.quote(query)
-    search_url = (
-        f"https://www.imdb.com/search/title/?title={encoded_query}&title_type=tv_series"
-    )
+    search_url = f"https://www.imdb.com/search/title/?title={encoded_query}&title_type=tv_series,tv_miniseries"
 
     soup = commonfunctions.getSoup(search_url)
     first_result = soup.select_one(".ipc-title-link-wrapper")
@@ -92,6 +91,25 @@ def main():
         "EpisodesChronological": episodes,
         "EpisodesSorted": sorted(episodes, key=lambda x: x["score"], reverse=True),
     }
+
+    # Group episodes by season and calculate aggregate score
+    seasons_data = defaultdict(lambda: {"season_number": None, "total_score": 0})
+    for ep in episodes:
+        season = ep.get("season_number")  # Use .get() for safety
+        score = ep.get("score", 0)  # Use .get() with default
+        if season is not None:  # Only process if season number exists
+            seasons_data[season]["season_number"] = (
+                season  # Ensure season_number is set
+            )
+            seasons_data[season]["total_score"] += score
+
+    # Sort seasons by total score (descending)
+    sorted_seasons = sorted(
+        seasons_data.values(), key=lambda x: x["total_score"], reverse=True
+    )
+
+    # Add sorted seasons to the results
+    results["Seasons"] = sorted_seasons
 
     save_results(results, show_name)
 

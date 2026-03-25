@@ -127,7 +127,10 @@ def get_movies(scores, url, min_score=40000, bypassed=0, min_ratio=0.4, maxbypas
         return get_movies(scores, nexturl, min_score, bypassed, min_ratio, maxbypassed)
 
 
-def process_movie(movie, scores, min_score, min_ratio):
+def process_movie(
+    movie,
+    scores,
+):
     url = movie["href"]
     moviename = movie.text
     title_id = url.split("/")[2]
@@ -184,48 +187,124 @@ def get_episodes(title_id, min_ratio=0.4):
     url = f"https://www.imdb.com/search/title/?series={title_id}&sort=release_date,asc&count=250"
     soup = getSoup(url)
 
-    # Get the show name
-    show_name_element = soup.select_one("h3.ipc-title__text")
-    show_name = show_name_element.text.strip() if show_name_element else "Unknown Show"
+    # Find the __NEXT_DATA__ script tag
+    next_data_script = soup.find("script", id="__NEXT_DATA__")
+    if not next_data_script:
+        print(f"Could not find __NEXT_DATA__ script tag for title {title_id}")
+        return {"show_name": "Unknown Show", "episodes": []}
 
-    episode_links = soup.select(".ep-title > a")
+    # Parse the JSON data
+    try:
+        data = json.loads(next_data_script.string)
+        results = data["props"]["pageProps"]["searchResults"]["titleResults"]
+        episode_items = results.get("titleListItems", [])
 
-    with ThreadPoolExecutor() as executor:
-        episodes = list(executor.map(process_episode, enumerate(episode_links, 1)))
+        # Attempt to get show name from searchInput first (more robust)
+        show_name = (
+            data.get("props", {})
+            .get("pageProps", {})
+            .get("searchInput", {})
+            .get("series", {})
+            .get("include", [{}])[0]
+            .get("text")
+        )
 
-    # Filter episodes based on min_ratio
-    filtered_episodes = [ep for ep in episodes if ep and ep["ratio"] >= min_ratio]
+        # If not found, try getting it from the first episode's series info
+        if not show_name and episode_items:
+            show_name = episode_items[0].get("series", {}).get("titleText")
 
-    return {"show_name": show_name, "episodes": filtered_episodes}
+        # Fallback if still not found
+        if not show_name:
+            show_name = "Unknown Show"  # Fallback name
+            print(f"Could not reliably determine show name for {title_id}")
 
+    except (json.JSONDecodeError, KeyError, IndexError) as e:  # Added IndexError
+        print(f"Error parsing __NEXT_DATA__ JSON or finding keys: {e}")
+        return {"show_name": "Unknown Show", "episodes": []}
 
-def process_episode(indexed_ep_link):
-    index, ep_link = indexed_ep_link
-    episode_id = ep_link["href"].split("/")[2]
-    name = ep_link.text.strip()
-    episode_link = f"https://www.imdb.com{ep_link['href']}"
+    # Helper function to process a single episode item
+    def _process_single_episode(indexed_item):
+        index, item = indexed_item
+        try:
+            episode_id = item.get("titleId")
+            name = item.get("titleText")
+            episode_link = f"https://www.imdb.com/title/{episode_id}/"
 
-    result = get_ep_score(episode_id)
-    if not result:
-        return None
+            if not episode_id or not name:
+                print(f"Skipping item at index {index} due to missing ID or name")
+                return None
 
-    _, score, ratings_sum = result
-    episode_ratio = score / ratings_sum
-    calculated_score = round(score * episode_ratio)
+            # Get score using the existing function
+            score_result = get_ep_score(episode_id)
+            print(
+                f"Score result for {episode_id}: {score_result}"
+            )  # Debug score result
+            if not score_result:
+                print(f"Skipping episode {episode_id} ('{name}') due to scoring error")
+                return None
 
-    return {
-        "number": index,
-        "name": name,
-        "score": calculated_score,
-        "ratio": round(episode_ratio, 2),
-        "link": episode_link,
-    }
+            # Unpack results including season and episode numbers
+            _, score, ratings_sum, season_number, episode_number = score_result
+            if ratings_sum == 0:
+                episode_ratio = 0
+                calculated_score = 0
+                print(f"Warning: Episode {episode_id} ('{name}') has zero rating sum.")
+            else:
+                episode_ratio = score / ratings_sum
+                calculated_score = round(score * episode_ratio)
+
+            print(
+                f"Calculated score: {calculated_score}, Ratio: {episode_ratio:.2f}, Sum: {ratings_sum}"
+            )  # Debug calculated values
+
+            # Return episode data if ratio is sufficient
+            if episode_ratio >= min_ratio:
+                print(
+                    f"Adding episode {episode_id} ('{name}') - Ratio {episode_ratio:.2f} >= {min_ratio}"
+                )  # Debug adding episode
+                return {
+                    "name": name,
+                    "score": calculated_score,
+                    "ratio": round(episode_ratio, 2),
+                    "link": episode_link,
+                    "season_number": season_number,
+                    "episode_number": episode_number,
+                }
+            else:
+                print(
+                    f"Skipping episode {episode_id} ('{name}') - Ratio {episode_ratio:.2f} < {min_ratio}"
+                )  # Debug skipping episode
+                return None  # Episode doesn't meet min_ratio
+        except Exception as e:
+            print(f"Error processing episode item at index {index}: {item}. Error: {e}")
+            return None  # Return None on error
+
+    # Use ThreadPoolExecutor to process episodes in parallel
+    episodes = []
+    with ThreadPoolExecutor(max_workers=5) as executor:
+        # Map the helper function over the enumerated episode items
+        results = executor.map(_process_single_episode, enumerate(episode_items, 1))
+        # Filter out None results (from errors or ratio filtering)
+        episodes = [ep for ep in results if ep is not None]
+
+    # Sort episodes by number just in case parallel execution messed up the order
+    print(episodes)
+    episodes.sort(
+        key=lambda x: (
+            x["season_number"] if x["season_number"] is not None else float("-inf"),
+            x["episode_number"] if x["episode_number"] is not None else float("-inf"),
+        )
+    )
+
+    return {"show_name": show_name, "episodes": episodes}
 
 
 def get_ep_score(title_id):
     url = "https://www.imdb.com/title/" + title_id + "/ratings"
 
     soup = getSoup(url)
+    season_number = None  # Initialize season number
+    episode_number = None  # Initialize episode number
 
     try:
         ratings = []
@@ -265,8 +344,27 @@ def get_ep_score(title_id):
             "text"
         ]
 
+        # Extract season and episode number from series info if available
+        series_info = (
+            data.get("props", {})
+            .get("pageProps", {})
+            .get("contentData", {})
+            .get("entityMetadata", {})
+            .get("series", {})
+        )
+        if series_info and isinstance(
+            series_info, dict
+        ):  # Check if series_info exists and is a dict
+            episode_num_info = series_info.get("episodeNumber")
+            if episode_num_info and isinstance(
+                episode_num_info, dict
+            ):  # Check if episodeNumber info exists and is a dict
+                season_number = episode_num_info.get("seasonNumber")
+                episode_number = episode_num_info.get("episodeNumber")
+
     if len(ratings) < 1:
         return None
 
     score = ratings[0] + ratings[1] - ratings[-1] - ratings[-2]
-    return name, score, sum(ratings)
+    # Return name, score, sum of ratings, season number, and episode number
+    return name, score, sum(ratings), season_number, episode_number
