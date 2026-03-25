@@ -33,8 +33,8 @@ function timeAgo(ts: number): string {
 
 function ratioTag(ratio: number): { text: string; color: Color } {
   const pct = Math.round(ratio * 100);
-  if (pct >= 80) return { text: `${pct}%`, color: Color.Green };
-  if (pct >= 50) return { text: `${pct}%`, color: Color.Yellow };
+  if (ratio >= 0.7) return { text: `${pct}%`, color: Color.Green };
+  if (ratio >= 0.5) return { text: `${pct}%`, color: Color.Yellow };
   return { text: `${pct}%`, color: Color.Red };
 }
 
