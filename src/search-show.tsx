@@ -11,7 +11,14 @@ import {
 import { useState, useCallback, useEffect } from "react";
 import { searchShow, getShowName, getEpisodes, resizeImg, type Episode } from "./imdb";
 
-type SortMode = "score" | "chronological";
+type SortMode = "chronological" | "score" | "seasons";
+
+const MODE_CYCLE: SortMode[] = ["chronological", "score", "seasons"];
+const MODE_LABELS: Record<SortMode, string> = {
+  chronological: "Chronological",
+  score: "By Score",
+  seasons: "Best Seasons",
+};
 
 interface CachedShow {
   showName: string;
@@ -149,21 +156,42 @@ export default function Command(props: {
     }
   }, [searchText, resolveTitleId, fetchAndCache]);
 
-  const sorted =
-    sortMode === "score"
-      ? [...episodes].sort((a, b) => b.score - a.score)
-      : episodes;
-
-  // Group by season
-  const seasons = new Map<number | null, Episode[]>();
-  for (const ep of sorted) {
-    const key = ep.season_number;
-    if (!seasons.has(key)) seasons.set(key, []);
-    seasons.get(key)!.push(ep);
+  // Build display sections per view mode:
+  //  chronological — episodes grouped by season, in airing order
+  //  score         — one flat ranking of every episode across the show
+  //  seasons       — seasons ranked by cumulative episode score
+  const sections: { title: string; subtitle: string; items: Episode[] }[] = [];
+  if (sortMode === "score") {
+    const ranked = [...episodes].sort((a, b) => b.score - a.score);
+    sections.push({ title: "By Score", subtitle: `${ranked.length} episodes`, items: ranked });
+  } else {
+    const seasons = new Map<number | null, Episode[]>();
+    for (const ep of episodes) {
+      const key = ep.season_number;
+      if (!seasons.has(key)) seasons.set(key, []);
+      seasons.get(key)!.push(ep);
+    }
+    const groups = Array.from(seasons, ([season, eps]) => ({
+      season,
+      eps,
+      total: eps.reduce((sum, ep) => sum + ep.score, 0),
+    }));
+    if (sortMode === "seasons") groups.sort((a, b) => b.total - a.total);
+    for (const { season, eps, total } of groups) {
+      sections.push({
+        title: season != null ? `Season ${season}` : "Unknown Season",
+        subtitle:
+          sortMode === "seasons"
+            ? `${total.toLocaleString()} pts · ${eps.length} eps`
+            : `${eps.length} episodes`,
+        items: eps,
+      });
+    }
   }
 
-  const toggleSort = () =>
-    setSortMode((m) => (m === "score" ? "chronological" : "score"));
+  const nextMode =
+    MODE_CYCLE[(MODE_CYCLE.indexOf(sortMode) + 1) % MODE_CYCLE.length];
+  const cycleMode = () => setSortMode(nextMode);
 
   const navTitle = showName
     ? cachedAt
@@ -179,6 +207,19 @@ export default function Command(props: {
       searchBarPlaceholder="Show name or IMDb URL..."
       navigationTitle={navTitle}
       isShowingDetail={episodes.length > 0}
+      searchBarAccessory={
+        episodes.length > 0 ? (
+          <List.Dropdown
+            tooltip="View"
+            value={sortMode}
+            onChange={(v) => setSortMode(v as SortMode)}
+          >
+            <List.Dropdown.Item title="Chronological" value="chronological" icon={Icon.List} />
+            <List.Dropdown.Item title="By Score" value="score" icon={Icon.Star} />
+            <List.Dropdown.Item title="Best Seasons" value="seasons" icon={Icon.Trophy} />
+          </List.Dropdown>
+        ) : undefined
+      }
       throttle
     >
       {episodes.length === 0 ? (
@@ -204,24 +245,24 @@ export default function Command(props: {
           }
         />
       ) : (
-        Array.from(seasons.entries()).map(([season, eps]) => (
+        sections.map((section) => (
           <List.Section
-            key={String(season)}
-            title={season != null ? `Season ${season}` : "Unknown Season"}
-            subtitle={`${eps.length} episodes`}
+            key={section.title}
+            title={section.title}
+            subtitle={section.subtitle}
           >
-            {eps.map((ep, i) => {
+            {section.items.map((ep, i) => {
               const tag = ratioTag(ep.ratio);
               return (
                 <List.Item
-                  key={`${season}-${i}`}
+                  key={`${section.title}-${i}`}
                   title={ep.name}
                   subtitle={
                     ep.season_number != null && ep.episode_number != null
                       ? `S${ep.season_number}E${ep.episode_number}`
                       : undefined
                   }
-                  icon={{ source: resizeImg(ep.imageUrl, 100) ?? resizeImg(showImageUrl, 100) ?? Icon.Tv, fallback: Icon.Tv }}
+                  icon={{ source: resizeImg(ep.imageUrl, 100) ?? resizeImg(showImageUrl, 100) ?? Icon.FilmStrip, fallback: Icon.FilmStrip }}
                   accessories={[
                     { tag: { value: tag.text, color: tag.color } },
                   ]}
@@ -265,10 +306,10 @@ export default function Command(props: {
                         content={ep.link}
                       />
                       <Action
-                        title={`Sort by ${sortMode === "score" ? "Chronological" : "Score"}`}
-                        icon={Icon.ArrowsContract}
+                        title={`Switch to ${MODE_LABELS[nextMode]}`}
+                        icon={Icon.Switch}
                         shortcut={{ modifiers: ["cmd"], key: "s" }}
-                        onAction={toggleSort}
+                        onAction={cycleMode}
                       />
                       <Action
                         title="Refresh Episodes"
