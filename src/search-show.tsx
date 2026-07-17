@@ -45,6 +45,13 @@ function ratioTag(ratio: number): { text: string; color: Color } {
   return { text: `${pct}%`, color: Color.Red };
 }
 
+function rankIcon(i: number) {
+  if (i === 0) return { source: Icon.Trophy, tintColor: Color.Yellow };
+  if (i === 1) return { source: Icon.Trophy, tintColor: Color.SecondaryText };
+  if (i === 2) return { source: Icon.Trophy, tintColor: Color.Orange };
+  return Icon.Dot;
+}
+
 export default function Command(props: {
   arguments: { query?: string; minRatio?: string };
 }) {
@@ -54,6 +61,7 @@ export default function Command(props: {
   const [episodes, setEpisodes] = useState<Episode[]>([]);
   const [showName, setShowName] = useState("");
   const [showImageUrl, setShowImageUrl] = useState<string | null>(null);
+  const [titleId, setTitleId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [sortMode, setSortMode] = useState<SortMode>("chronological");
   const [progress, setProgress] = useState("");
@@ -108,6 +116,7 @@ export default function Command(props: {
     try {
       const { titleId, name } = await resolveTitleId(query);
       setShowName(name);
+      setTitleId(titleId);
 
       // Check cache
       const raw = await LocalStorage.getItem<string>(`episodes:${titleId}`);
@@ -146,6 +155,7 @@ export default function Command(props: {
 
     try {
       const { titleId, name } = await resolveTitleId(query);
+      setTitleId(titleId);
       await fetchAndCache(titleId, name);
       await showToast({ style: Toast.Style.Success, title: "Episodes refreshed" });
     } catch (e) {
@@ -156,34 +166,33 @@ export default function Command(props: {
     }
   }, [searchText, resolveTitleId, fetchAndCache]);
 
-  // Build display sections per view mode:
+  // Group episodes by season — used by the chronological and seasons views.
+  const seasonMap = new Map<number | null, Episode[]>();
+  for (const ep of episodes) {
+    const key = ep.season_number;
+    if (!seasonMap.has(key)) seasonMap.set(key, []);
+    seasonMap.get(key)!.push(ep);
+  }
+  const seasonGroups = Array.from(seasonMap, ([season, eps]) => ({
+    season,
+    eps,
+    total: eps.reduce((sum, ep) => sum + ep.score, 0),
+  }));
+  if (sortMode === "seasons") seasonGroups.sort((a, b) => b.total - a.total);
+
+  // Sections for the episode-list views:
   //  chronological — episodes grouped by season, in airing order
   //  score         — one flat ranking of every episode across the show
-  //  seasons       — seasons ranked by cumulative episode score
+  // (seasons renders one row per season instead — see the render below.)
   const sections: { title: string; subtitle: string; items: Episode[] }[] = [];
   if (sortMode === "score") {
     const ranked = [...episodes].sort((a, b) => b.score - a.score);
     sections.push({ title: "By Score", subtitle: `${ranked.length} episodes`, items: ranked });
-  } else {
-    const seasons = new Map<number | null, Episode[]>();
-    for (const ep of episodes) {
-      const key = ep.season_number;
-      if (!seasons.has(key)) seasons.set(key, []);
-      seasons.get(key)!.push(ep);
-    }
-    const groups = Array.from(seasons, ([season, eps]) => ({
-      season,
-      eps,
-      total: eps.reduce((sum, ep) => sum + ep.score, 0),
-    }));
-    if (sortMode === "seasons") groups.sort((a, b) => b.total - a.total);
-    for (const { season, eps, total } of groups) {
+  } else if (sortMode === "chronological") {
+    for (const { season, eps } of seasonGroups) {
       sections.push({
         title: season != null ? `Season ${season}` : "Unknown Season",
-        subtitle:
-          sortMode === "seasons"
-            ? `${total.toLocaleString()} pts · ${eps.length} eps`
-            : `${eps.length} episodes`,
+        subtitle: `${eps.length} episodes`,
         items: eps,
       });
     }
@@ -244,6 +253,71 @@ export default function Command(props: {
             ) : undefined
           }
         />
+      ) : sortMode === "seasons" ? (
+        seasonGroups.map(({ season, eps, total }, i) => {
+          const avg = Math.round(total / eps.length);
+          const best = [...eps].sort((a, b) => b.score - a.score)[0];
+          return (
+            <List.Item
+              key={season ?? "unknown"}
+              title={season != null ? `Season ${season}` : "Unknown Season"}
+              icon={rankIcon(i)}
+              accessories={[
+                { text: `${eps.length} eps` },
+                { tag: { value: total.toLocaleString(), color: Color.Yellow } },
+              ]}
+              detail={
+                <List.Item.Detail
+                  metadata={
+                    <List.Item.Detail.Metadata>
+                      <List.Item.Detail.Metadata.Label
+                        title="Cumulative Score"
+                        text={total.toLocaleString()}
+                        icon={Icon.Trophy}
+                      />
+                      <List.Item.Detail.Metadata.Label
+                        title="Average per Episode"
+                        text={avg.toLocaleString()}
+                        icon={Icon.Star}
+                      />
+                      <List.Item.Detail.Metadata.Label
+                        title="Episodes"
+                        text={`${eps.length}`}
+                        icon={Icon.List}
+                      />
+                      <List.Item.Detail.Metadata.Separator />
+                      <List.Item.Detail.Metadata.Label title="Best Episode" text={best.name} />
+                    </List.Item.Detail.Metadata>
+                  }
+                />
+              }
+              actions={
+                <ActionPanel>
+                  <Action.OpenInBrowser
+                    title="Open Season on IMDb"
+                    url={
+                      season != null
+                        ? `https://www.imdb.com/title/${titleId}/episodes/?season=${season}`
+                        : `https://www.imdb.com/title/${titleId}/`
+                    }
+                  />
+                  <Action
+                    title={`Switch to ${MODE_LABELS[nextMode]}`}
+                    icon={Icon.Switch}
+                    shortcut={{ modifiers: ["cmd"], key: "s" }}
+                    onAction={cycleMode}
+                  />
+                  <Action
+                    title="Refresh Episodes"
+                    icon={Icon.ArrowClockwise}
+                    shortcut={{ modifiers: ["cmd"], key: "r" }}
+                    onAction={doRefresh}
+                  />
+                </ActionPanel>
+              }
+            />
+          );
+        })
       ) : (
         sections.map((section) => (
           <List.Section
