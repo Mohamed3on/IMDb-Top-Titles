@@ -4,6 +4,7 @@ const HEADERS = {
   "User-Agent":
     "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15",
   "Content-Type": "application/json",
+  "x-imdb-client-name": "imdb-web-next",
 };
 
 /** Resize an IMDb image URL by replacing ._V1_.jpg with ._V1_SX{width}.jpg */
@@ -28,14 +29,19 @@ export interface EpisodesResult {
   episodes: Episode[];
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-async function gql(query: string, variables?: Record<string, unknown>): Promise<any> {
+async function gql<T>(
+  query: string,
+  variables?: Record<string, unknown>,
+): Promise<T> {
   const res = await fetch(GQL_URL, {
     method: "POST",
     headers: HEADERS,
     body: JSON.stringify({ query, variables }),
   });
-  const json = await res.json();
+  const json = (await res.json()) as {
+    errors?: { message: string }[];
+    data: T;
+  };
   if (json.errors?.length) throw new Error(json.errors[0].message);
   return json.data;
 }
@@ -46,16 +52,20 @@ export async function searchShow(
   const res = await fetch(`${SUGGEST_URL}${encodeURIComponent(query)}.json`, {
     headers: { "User-Agent": HEADERS["User-Agent"] },
   });
-  const data = await res.json();
+  const data = (await res.json()) as {
+    d?: { id: string; l: string; qid?: string }[];
+  };
   const tvShow = data.d?.find(
-    (d: { qid?: string }) => d.qid === "tvSeries" || d.qid === "tvMiniSeries",
+    (d) => d.qid === "tvSeries" || d.qid === "tvMiniSeries",
   );
   if (!tvShow) throw new Error(`No show found for: ${query}`);
   return { id: tvShow.id, name: tvShow.l };
 }
 
 export async function getShowName(titleId: string): Promise<string> {
-  const data = await gql(`{ title(id: "${titleId}") { titleText { text } } }`);
+  const data = await gql<{
+    title: { titleText: { text: string } | null } | null;
+  }>(`{ title(id: "${titleId}") { titleText { text } } }`);
   return data.title?.titleText?.text ?? "Unknown Show";
 }
 
@@ -88,10 +98,25 @@ interface GqlEpisodeNode {
   id: string;
   titleText: { text: string };
   primaryImage: { url: string } | null;
-  series: { episodeNumber: { seasonNumber: number; episodeNumber: number } } | null;
+  series: {
+    episodeNumber: { seasonNumber: number; episodeNumber: number };
+  } | null;
   aggregateRatingsBreakdown: {
     histogram: { histogramValues: { rating: number; voteCount: number }[] };
   } | null;
+}
+
+interface EpisodesQueryData {
+  title: {
+    titleText: { text: string } | null;
+    primaryImage: { url: string } | null;
+    episodes: {
+      episodes: {
+        edges: { node: GqlEpisodeNode }[];
+        pageInfo: { hasNextPage: boolean; endCursor: string };
+      };
+    };
+  };
 }
 
 function scoreFromHistogram(
@@ -118,7 +143,11 @@ export async function getEpisodes(
 
   // Paginate through all episodes
   for (;;) {
-    const data = await gql(EPISODES_QUERY, { id: titleId, first: 250, after });
+    const data = await gql<EpisodesQueryData>(EPISODES_QUERY, {
+      id: titleId,
+      first: 250,
+      after,
+    });
     const title = data.title;
     if (showName === "Unknown Show") {
       showName = title.titleText?.text ?? "Unknown Show";
@@ -142,7 +171,8 @@ export async function getEpisodes(
     const node = allNodes[i];
     onProgress?.(i + 1, total);
 
-    const histValues = node.aggregateRatingsBreakdown?.histogram?.histogramValues;
+    const histValues =
+      node.aggregateRatingsBreakdown?.histogram?.histogramValues;
     const result = scoreFromHistogram(histValues ?? []);
     if (!result || result.total === 0) continue;
 
@@ -169,5 +199,9 @@ export async function getEpisodes(
       (a.episode_number ?? -Infinity) - (b.episode_number ?? -Infinity),
   );
 
-  return { showName: showName.replace(/^\d+\.\s*/, "").trim(), showImageUrl, episodes };
+  return {
+    showName: showName.replace(/^\d+\.\s*/, "").trim(),
+    showImageUrl,
+    episodes,
+  };
 }

@@ -3,6 +3,7 @@ const SUGGEST_URL = "https://v3.sg.media-imdb.com/suggestion/x/";
 const HEADERS = {
   "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15",
   "Content-Type": "application/json",
+  "x-imdb-client-name": "imdb-web-next",
 };
 const MIN_RATIO = 0;
 
