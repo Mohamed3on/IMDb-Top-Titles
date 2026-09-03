@@ -7,9 +7,16 @@ import {
   Icon,
   LocalStorage,
   Color,
+  Keyboard,
 } from "@raycast/api";
 import { useState, useCallback, useEffect } from "react";
-import { searchShow, getShowName, getEpisodes, resizeImg, type Episode } from "./imdb";
+import {
+  searchShow,
+  getShowName,
+  getEpisodes,
+  resizeImg,
+  type Episode,
+} from "./imdb";
 
 type SortMode = "chronological" | "score" | "seasons";
 
@@ -68,77 +75,101 @@ export default function Command(props: {
   const [searchText, setSearchText] = useState(props.arguments?.query ?? "");
   const [cachedAt, setCachedAt] = useState<number | null>(null);
 
-  const resolveTitleId = useCallback(async (query: string): Promise<{ titleId: string; name: string }> => {
-    const titleMatch = query.match(/tt\d+/);
-    if (titleMatch) {
-      return { titleId: titleMatch[0], name: await getShowName(titleMatch[0]) };
-    }
-    const result = await searchShow(query);
-    return { titleId: result.id, name: result.name };
-  }, []);
+  const resolveTitleId = useCallback(
+    async (query: string): Promise<{ titleId: string; name: string }> => {
+      const titleMatch = query.match(/tt\d+/);
+      if (titleMatch) {
+        return {
+          titleId: titleMatch[0],
+          name: await getShowName(titleMatch[0]),
+        };
+      }
+      const result = await searchShow(query);
+      return { titleId: result.id, name: result.name };
+    },
+    [],
+  );
 
-  const fetchAndCache = useCallback(async (titleId: string, name: string) => {
-    setProgress(`Fetching episodes for ${name}...`);
+  const fetchAndCache = useCallback(
+    async (titleId: string, name: string) => {
+      setProgress(`Fetching episodes for ${name}...`);
 
-    const { showName: resolved, showImageUrl: imgUrl, episodes: eps } = await getEpisodes(
-      titleId,
-      minRatio,
-      (done, total) => {
+      const {
+        showName: resolved,
+        showImageUrl: imgUrl,
+        episodes: eps,
+      } = await getEpisodes(titleId, minRatio, (done, total) => {
         setProgress(`Scoring episodes... ${done}/${total}`);
-      },
-    );
+      });
 
-    const finalName = resolved !== "Unknown Show" ? resolved : name;
-    const now = Date.now();
+      const finalName = resolved !== "Unknown Show" ? resolved : name;
+      const now = Date.now();
 
-    const cached: CachedShow = { showName: finalName, showImageUrl: imgUrl, episodes: eps, timestamp: now };
-    await LocalStorage.setItem(`episodes:${titleId}`, JSON.stringify(cached));
+      const cached: CachedShow = {
+        showName: finalName,
+        showImageUrl: imgUrl,
+        episodes: eps,
+        timestamp: now,
+      };
+      await LocalStorage.setItem(`episodes:${titleId}`, JSON.stringify(cached));
 
-    setShowName(finalName);
-    setShowImageUrl(imgUrl);
-    setEpisodes(eps);
-    setCachedAt(now);
+      setShowName(finalName);
+      setShowImageUrl(imgUrl);
+      setEpisodes(eps);
+      setCachedAt(now);
 
-    if (eps.length === 0) {
-      await showToast({ style: Toast.Style.Failure, title: "No episodes passed the ratio threshold" });
-    }
-  }, [minRatio]);
+      if (eps.length === 0) {
+        await showToast({
+          style: Toast.Style.Failure,
+          title: "No episodes passed the ratio threshold",
+        });
+      }
+    },
+    [minRatio],
+  );
 
-  const doSearch = useCallback(async (query: string) => {
-    if (!query.trim()) return;
-    setIsLoading(true);
-    setEpisodes([]);
-    setShowName("");
-    setShowImageUrl(null);
-    setCachedAt(null);
-    setProgress("Searching...");
+  const doSearch = useCallback(
+    async (query: string) => {
+      if (!query.trim()) return;
+      setIsLoading(true);
+      setEpisodes([]);
+      setShowName("");
+      setShowImageUrl(null);
+      setCachedAt(null);
+      setProgress("Searching...");
 
-    try {
-      const { titleId, name } = await resolveTitleId(query);
-      setShowName(name);
-      setTitleId(titleId);
+      try {
+        const { titleId, name } = await resolveTitleId(query);
+        setShowName(name);
+        setTitleId(titleId);
 
-      // Check cache
-      const raw = await LocalStorage.getItem<string>(`episodes:${titleId}`);
-      if (raw) {
-        const cached: CachedShow = JSON.parse(raw);
-        setShowName(cached.showName);
-        setShowImageUrl(cached.showImageUrl ?? null);
-        setEpisodes(cached.episodes);
-        setCachedAt(cached.timestamp);
+        // Check cache
+        const raw = await LocalStorage.getItem<string>(`episodes:${titleId}`);
+        if (raw) {
+          const cached: CachedShow = JSON.parse(raw);
+          setShowName(cached.showName);
+          setShowImageUrl(cached.showImageUrl ?? null);
+          setEpisodes(cached.episodes);
+          setCachedAt(cached.timestamp);
+          setIsLoading(false);
+          setProgress("");
+          return;
+        }
+
+        await fetchAndCache(titleId, name);
+      } catch (e) {
+        await showToast({
+          style: Toast.Style.Failure,
+          title: "Error",
+          message: String(e),
+        });
+      } finally {
         setIsLoading(false);
         setProgress("");
-        return;
       }
-
-      await fetchAndCache(titleId, name);
-    } catch (e) {
-      await showToast({ style: Toast.Style.Failure, title: "Error", message: String(e) });
-    } finally {
-      setIsLoading(false);
-      setProgress("");
-    }
-  }, [resolveTitleId, fetchAndCache]);
+    },
+    [resolveTitleId, fetchAndCache],
+  );
 
   useEffect(() => {
     if (props.arguments?.query?.trim()) {
@@ -157,9 +188,16 @@ export default function Command(props: {
       const { titleId, name } = await resolveTitleId(query);
       setTitleId(titleId);
       await fetchAndCache(titleId, name);
-      await showToast({ style: Toast.Style.Success, title: "Episodes refreshed" });
+      await showToast({
+        style: Toast.Style.Success,
+        title: "Episodes refreshed",
+      });
     } catch (e) {
-      await showToast({ style: Toast.Style.Failure, title: "Refresh failed", message: String(e) });
+      await showToast({
+        style: Toast.Style.Failure,
+        title: "Refresh failed",
+        message: String(e),
+      });
     } finally {
       setIsLoading(false);
       setProgress("");
@@ -187,7 +225,11 @@ export default function Command(props: {
   const sections: { title: string; subtitle: string; items: Episode[] }[] = [];
   if (sortMode === "score") {
     const ranked = [...episodes].sort((a, b) => b.score - a.score);
-    sections.push({ title: "By Score", subtitle: `${ranked.length} episodes`, items: ranked });
+    sections.push({
+      title: "By Score",
+      subtitle: `${ranked.length} episodes`,
+      items: ranked,
+    });
   } else if (sortMode === "chronological") {
     for (const { season, eps } of seasonGroups) {
       sections.push({
@@ -223,9 +265,21 @@ export default function Command(props: {
             value={sortMode}
             onChange={(v) => setSortMode(v as SortMode)}
           >
-            <List.Dropdown.Item title="Chronological" value="chronological" icon={Icon.List} />
-            <List.Dropdown.Item title="By Score" value="score" icon={Icon.Star} />
-            <List.Dropdown.Item title="Best Seasons" value="seasons" icon={Icon.Trophy} />
+            <List.Dropdown.Item
+              title="Chronological"
+              value="chronological"
+              icon={Icon.List}
+            />
+            <List.Dropdown.Item
+              title="By Score"
+              value="score"
+              icon={Icon.Star}
+            />
+            <List.Dropdown.Item
+              title="Best Seasons"
+              value="seasons"
+              icon={Icon.Trophy}
+            />
           </List.Dropdown>
         ) : undefined
       }
@@ -286,7 +340,10 @@ export default function Command(props: {
                         icon={Icon.List}
                       />
                       <List.Item.Detail.Metadata.Separator />
-                      <List.Item.Detail.Metadata.Label title="Best Episode" text={best.name} />
+                      <List.Item.Detail.Metadata.Label
+                        title="Best Episode"
+                        text={best.name}
+                      />
                     </List.Item.Detail.Metadata>
                   }
                 />
@@ -304,13 +361,13 @@ export default function Command(props: {
                   <Action
                     title={`Switch to ${MODE_LABELS[nextMode]}`}
                     icon={Icon.Switch}
-                    shortcut={{ modifiers: ["cmd"], key: "s" }}
+                    shortcut={Keyboard.Shortcut.Common.Save}
                     onAction={cycleMode}
                   />
                   <Action
                     title="Refresh Episodes"
                     icon={Icon.ArrowClockwise}
-                    shortcut={{ modifiers: ["cmd"], key: "r" }}
+                    shortcut={Keyboard.Shortcut.Common.Refresh}
                     onAction={doRefresh}
                   />
                 </ActionPanel>
@@ -336,10 +393,14 @@ export default function Command(props: {
                       ? `S${ep.season_number}E${ep.episode_number}`
                       : undefined
                   }
-                  icon={{ source: resizeImg(ep.imageUrl, 100) ?? resizeImg(showImageUrl, 100) ?? Icon.FilmStrip, fallback: Icon.FilmStrip }}
-                  accessories={[
-                    { tag: { value: tag.text, color: tag.color } },
-                  ]}
+                  icon={{
+                    source:
+                      resizeImg(ep.imageUrl, 100) ??
+                      resizeImg(showImageUrl, 100) ??
+                      Icon.FilmStrip,
+                    fallback: Icon.FilmStrip,
+                  }}
+                  accessories={[{ tag: { value: tag.text, color: tag.color } }]}
                   detail={
                     <List.Item.Detail
                       markdown={
@@ -374,7 +435,10 @@ export default function Command(props: {
                   }
                   actions={
                     <ActionPanel>
-                      <Action.OpenInBrowser title="Open on IMDb" url={ep.link} />
+                      <Action.OpenInBrowser
+                        title="Open on IMDb"
+                        url={ep.link}
+                      />
                       <Action.CopyToClipboard
                         title="Copy Link"
                         content={ep.link}
@@ -382,13 +446,13 @@ export default function Command(props: {
                       <Action
                         title={`Switch to ${MODE_LABELS[nextMode]}`}
                         icon={Icon.Switch}
-                        shortcut={{ modifiers: ["cmd"], key: "s" }}
+                        shortcut={Keyboard.Shortcut.Common.Save}
                         onAction={cycleMode}
                       />
                       <Action
                         title="Refresh Episodes"
                         icon={Icon.ArrowClockwise}
-                        shortcut={{ modifiers: ["cmd"], key: "r" }}
+                        shortcut={Keyboard.Shortcut.Common.Refresh}
                         onAction={doRefresh}
                       />
                     </ActionPanel>

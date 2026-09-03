@@ -1,4 +1,6 @@
 *.json
+!package.json
+!tsconfig.json
 test.py
 /.idea
 /__pycache__
@@ -14,7 +16,6 @@ IMDbetter/imdb/__pycache__/
 login\.py
 node_modules/
 .DS_Store
-bun.lock
 
 buzzsumo\.py
 
